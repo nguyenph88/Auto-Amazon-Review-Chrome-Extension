@@ -55,15 +55,24 @@ async function extractProductInfo(asin) {
 
 // Function to update extension state based on current tab
 async function updateExtensionState(tabId, url) {
-  if (isAmazonReviewPage(url)) {
-    // Enable extension for Amazon review pages
+  if (isAmazonReviewPage(url) || isWordHeroPage(url)) {
+    // Enable extension for Amazon review pages and WordHero pages
     await chrome.action.enable(tabId);
-    console.log("Extension enabled for Amazon review page:", url);
+    if (isAmazonReviewPage(url)) {
+      console.log("Extension enabled for Amazon review page:", url);
+    } else if (isWordHeroPage(url)) {
+      console.log("Extension enabled for WordHero page:", url);
+    }
   } else {
-    // Disable extension for non-review pages
+    // Disable extension for other pages
     await chrome.action.disable(tabId);
     console.log("Extension disabled for non-review page:", url);
   }
+}
+
+// Function to check if a URL is a WordHero page
+function isWordHeroPage(url) {
+  return url && url.includes('app.wordhero.co');
 }
 
 // Listen for tab updates

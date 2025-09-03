@@ -10,7 +10,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://www.amazon.com/*"
+    "https://www.amazon.com/*",
+    "https://app.wordhero.co/*"
   ],
   "background": {
     "service_worker": "background.js"
