@@ -148,6 +148,22 @@ body {
     color: #f8d64e;
   }
   
+  /* Keyword Display */
+  .keyword-display {
+    margin-top: 12px;
+    padding: 8px 16px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .keyword-display #keyword-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    font-style: italic;
+  }
+  
   /* Actions Section */
   .actions {
     display: grid;

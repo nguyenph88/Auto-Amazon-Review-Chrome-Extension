@@ -13,6 +13,80 @@ let wordheroBtn;
 let productInfoContainer;
 let productTitle;
 let productImage;
+let keywordText;
+
+// Star Rating Keywords
+const STAR_KEYWORDS = {
+    1: [
+        "Waste of money",
+        "Very disappointed",
+        "Poor experience",
+        "Not as advertised",
+        "Terrible quality",
+        "Regret this purchase",
+        "Avoid at all costs",
+        "Major letdown",
+        "Fails to deliver",
+        "Complete failure"
+    ],
+    2: [
+        "Deeply flawed",
+        "Wouldn't recommend",
+        "Underwhelming",
+        "Not worth the price",
+        "Frustrating to use",
+        "Significant drawbacks",
+        "I expected more",
+        "Low quality",
+        "Barely functional",
+        "Disappointing"
+    ],
+    3: [
+        "It's average",
+        "Gets the job done",
+        "Nothing special",
+        "Decent but not great",
+        "Met expectations",
+        "Has pros and cons",
+        "Fair for the price",
+        "Could be improved",
+        "Unremarkable",
+        "Serviceable"
+    ],
+    4: [
+        "Very good",
+        "Solid choice",
+        "Great value",
+        "Happy with it",
+        "Works well",
+        "Impressive",
+        "Would recommend",
+        "Mostly positive",
+        "High quality",
+        "Almost perfect"
+    ],
+    5: [
+        "Absolutely perfect",
+        "Exceeded expectations",
+        "Outstanding",
+        "Highly recommend",
+        "Excellent quality",
+        "Fantastic purchase",
+        "A must-have",
+        "Top-notch",
+        "Incredible value",
+        "Flawless"
+    ]
+};
+
+// Function to get a random keyword for a given star rating
+function getRandomKeyword(rating) {
+    if (STAR_KEYWORDS[rating] && STAR_KEYWORDS[rating].length > 0) {
+        const randomIndex = Math.floor(Math.random() * STAR_KEYWORDS[rating].length);
+        return STAR_KEYWORDS[rating][randomIndex];
+    }
+    return "";
+}
 
 // Function to display product information
 function displayProductInfo(productInfo) {
@@ -115,6 +189,13 @@ function loadFromLocalStorage() {
             currentRating = parseInt(savedRating, 10);
             starRatingContainer.dataset.rating = currentRating;
             console.log('Star rating loaded from localStorage:', currentRating);
+            
+            // Load saved keyword if available
+            const savedKeyword = localStorage.getItem('selectedKeyword');
+            if (savedKeyword) {
+                keywordText.textContent = savedKeyword;
+                console.log('Keyword loaded from localStorage:', savedKeyword);
+            }
         }
     } catch (error) {
         console.error('Error loading from localStorage:', error);
@@ -194,6 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     productInfoContainer = document.getElementById('product-info-container');
     productTitle = document.getElementById('product-title');
     productImage = document.getElementById('product-image');
+    keywordText = document.getElementById('keyword-text');
   
   
     toggle.addEventListener('change', () => {
@@ -211,7 +293,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('star')) {
             currentRating = parseInt(e.target.dataset.value, 10);
             starRatingContainer.dataset.rating = currentRating;
-            saveStarRating(currentRating); // Save to localStorage
+            
+            // Get and display random keyword for the selected rating
+            const keyword = getRandomKeyword(currentRating);
+            keywordText.textContent = keyword;
+            
+            // Save both rating and keyword to localStorage
+            saveStarRating(currentRating);
+            localStorage.setItem('selectedKeyword', keyword);
         }
     });
 
