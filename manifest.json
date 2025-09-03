@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "AI Review Assistant",
+  "version": "1.0.0",
+  "description": "Helps generate product reviews on Amazon by automating interactions with AI writing services.",
+  "permissions": [
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.amazon.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.com/review/review-your-purchases/*"
+      ],
+      "js": [
+        "content-scripts/amazon.js"
+      ]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "images/icon16-inactive.png",
+      "48": "images/icon48-inactive.png",
+      "128": "images/icon128-inactive.png"
+    },
+    "default_title": "AI Review Assistant"
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}
