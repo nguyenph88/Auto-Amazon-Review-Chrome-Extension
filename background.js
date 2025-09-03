@@ -23,10 +23,12 @@ const createIcon = (color, text) => {
 };
 
 // Generate icons once and store them
-const ACTIVE_ICON = createIcon('#1976D2', 'R'); // Blue background for active
-const INACTIVE_ICON = createIcon('#78909C', 'R'); // Gray background for inactive
+const ACTIVE_ICON = createIcon('#1976D2', 'A'); // Blue background for active, now with 'A'
+const INACTIVE_ICON = createIcon('#78909C', 'A'); // Gray background for inactive, now with 'A'
 
-const reviewPagePattern = /^https://www\.amazon\.com\/review\/review-your-purchases\/\?.*asin=/;
+// UPDATED: This regex now treats the trailing slash before the '?' as optional (\/?)
+// This makes it more robust for different URL variations.
+const reviewPagePattern = /^https:\/\/www\.amazon\.com\/review\/review-your-purchases\/?\?.*asin=/;
 
 // This function updates the extension icon based on the URL.
 const updateIcon = async (tabId, url) => {
