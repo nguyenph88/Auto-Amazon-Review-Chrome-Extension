@@ -25,6 +25,9 @@ function displayProductInfo(productInfo) {
         // Store product data for later use
         chrome.storage.sync.set({ productData: productInfo });
         
+        // Also save to localStorage for persistence
+        localStorage.setItem('productData', JSON.stringify(productInfo));
+        
         console.log('Product info displayed:', productInfo);
     } else {
         console.error('Invalid product info received:', productInfo);
@@ -82,8 +85,46 @@ function showReviewPageContent() {
     
     // Show product info section with initial message
     productInfoContainer.style.display = 'flex';
-    productTitle.textContent = "Click 'Generate AI Review' on the review page to load product info";
-    productImage.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjVmNWY1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Q2xpY2sgdG8gTG9hZDwvdGV4dD4KPC9zdmc+";
+    // Only show default message if we don't have product data
+    if (!productData || !productData.title) {
+        productTitle.textContent = "Click 'Generate AI Review' on the review page to load product info";
+        productImage.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjVmNWY1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC9tYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Q2xpY2sgdG8gTG9hZDwvdGV4dD4KPC9zdmc+Cg==";
+    }
+    // If we have product data, it will already be displayed from loadFromLocalStorage
+}
+
+// Function to load data from localStorage
+function loadFromLocalStorage() {
+    try {
+        // Load product data
+        const savedProductData = localStorage.getItem('productData');
+        if (savedProductData) {
+            const productInfo = JSON.parse(savedProductData);
+            if (productInfo && productInfo.title && productInfo.imageUrl) {
+                productData = productInfo;
+                productTitle.textContent = productInfo.title;
+                productImage.src = productInfo.imageUrl;
+                productInfoContainer.style.display = 'flex';
+                console.log('Product data loaded from localStorage:', productInfo);
+            }
+        }
+        
+        // Load star rating
+        const savedRating = localStorage.getItem('starRating');
+        if (savedRating) {
+            currentRating = parseInt(savedRating, 10);
+            starRatingContainer.dataset.rating = currentRating;
+            console.log('Star rating loaded from localStorage:', currentRating);
+        }
+    } catch (error) {
+        console.error('Error loading from localStorage:', error);
+    }
+}
+
+// Function to save star rating to localStorage
+function saveStarRating(rating) {
+    localStorage.setItem('starRating', rating.toString());
+    console.log('Star rating saved to localStorage:', rating);
 }
 
 // Function to show loading state
@@ -121,6 +162,9 @@ function initializeExtension() {
         const isEnabled = result.extensionEnabled !== false;
         toggle.checked = isEnabled;
         
+        // Load data from localStorage first (most recent)
+        loadFromLocalStorage();
+        
         if (isEnabled) {
             checkCurrentPage();
             checkPendingProductInfo(); // Check for pending product info
@@ -128,7 +172,8 @@ function initializeExtension() {
             updatePopupState(false);
         }
 
-        if (result.productData && result.productData.title) {
+        // Fallback to chrome.storage.sync if localStorage is empty
+        if (!productData && result.productData && result.productData.title) {
             productData = result.productData;
             productTitle.textContent = result.productData.title;
             productImage.src = result.productData.imageUrl;
@@ -166,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('star')) {
             currentRating = parseInt(e.target.dataset.value, 10);
             starRatingContainer.dataset.rating = currentRating;
+            saveStarRating(currentRating); // Save to localStorage
         }
     });
 
