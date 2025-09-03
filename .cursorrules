@@ -1,0 +1,93 @@
+# AI Review Assistant Chrome Extension - Cursor Rules
+
+## Project Overview
+This is a Chrome extension that automates the process of writing Amazon product reviews using AI services (Gemini and WordHero). The extension integrates with Amazon's review system and can generate reviews based on user ratings and product information.
+
+## Architecture & Components
+
+### Core Files
+- `manifest.json` - Chrome extension manifest with permissions for Amazon, Gemini, and WordHero
+- `background.js` - Service worker that orchestrates the entire review workflow
+- `popup/` - Extension popup UI for user interaction and rating selection
+- `content-scripts/` - Scripts that run on different websites to automate tasks
+
+### Content Scripts
+- `amazon.js` - Runs on Amazon review pages, injects AI review button and handles review pasting
+- `product-page.js` - Scrapes product data from Amazon product detail pages
+- `gemini-automation.js` - Automates Gemini AI to generate reviews
+- `workhero-automation.js` - Automates WordHero AI to generate reviews
+
+## Development Rules
+
+### 1. Chrome Extension Best Practices
+- Always use Manifest V3 format
+- Follow Chrome extension security guidelines
+- Use appropriate permissions (tabs, storage, scripting)
+- Implement proper error handling for content script injection
+
+### 2. Code Structure
+- Keep content scripts focused on single responsibilities
+- Use clear naming conventions for functions and variables
+- Implement proper async/await patterns for Chrome API calls
+- Add comprehensive error logging for debugging
+
+### 3. UI/UX Guidelines
+- Maintain consistent styling with Amazon's design language
+- Provide clear user feedback for all actions
+- Implement proper loading states and error messages
+- Ensure accessibility compliance
+
+### 4. AI Integration
+- Handle AI service timeouts gracefully
+- Implement retry mechanisms for failed requests
+- Provide fallback options when AI services are unavailable
+- Cache generated content appropriately
+
+### 5. Amazon Integration
+- Respect Amazon's terms of service
+- Handle dynamic page changes gracefully
+- Use robust selectors that can withstand UI updates
+- Implement proper rate limiting to avoid detection
+
+### 6. Testing & Debugging
+- Test on different Amazon page layouts
+- Verify AI service integrations regularly
+- Monitor for breaking changes in target websites
+- Implement comprehensive logging for troubleshooting
+
+### 7. Performance
+- Minimize DOM queries and manipulations
+- Use efficient event handling patterns
+- Implement proper cleanup for event listeners
+- Optimize storage usage
+
+### 8. Security
+- Validate all user inputs
+- Sanitize data before injection
+- Implement proper CSP policies
+- Regular security audits
+
+## File Naming Conventions
+- Use kebab-case for file names
+- Content scripts: `{service}-automation.js`
+- Keep file names descriptive and purpose-driven
+
+## Code Style
+- Use ES6+ features where supported
+- Implement proper JSDoc comments
+- Follow consistent indentation (2 spaces)
+- Use meaningful variable and function names
+
+## Error Handling
+- Always wrap Chrome API calls in try-catch blocks
+- Provide user-friendly error messages
+- Log detailed errors for debugging
+- Implement graceful degradation
+
+## Documentation
+- Do not generate README.md or update unless I ask to
+- Keep README.md updated with latest features
+- Document any API changes or breaking modifications
+- Include setup and troubleshooting guides
+- Maintain changelog for version updates
+

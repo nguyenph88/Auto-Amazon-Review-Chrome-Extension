@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "AI Review Assistant",
-  "version": "1.0.1",
-  "description": "Helps generate product reviews on Amazon by automating interactions with AI writing services.",
+  "version": "1.0",
+  "description": "AI-powered Amazon review generator using Gemini and WordHero",
   "permissions": [
     "tabs",
-    "scripting",
-    "offscreen"
+    "storage",
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://www.amazon.com/*"
@@ -14,18 +15,21 @@
   "background": {
     "service_worker": "background.js"
   },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "AI Review Assistant",
+    "default_icon": {
+      "16": "icons/icon16.png"
+    }
+  },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.amazon.com/review/review-your-purchases/*"
-      ],
-      "js": [
-        "content-scripts/amazon.js"
-      ]
+      "matches": ["https://www.amazon.com/review/*"],
+      "js": ["content-scripts/amazon.js"],
+      "run_at": "document_end"
     }
   ],
-  "action": {
-    "default_title": "AI Review Assistant"
+  "icons": {
+    "16": "icons/icon16.png"
   }
 }
-

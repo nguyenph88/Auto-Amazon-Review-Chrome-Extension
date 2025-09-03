@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Review Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="title">AI Review Assistant</div>
+      <label class="switch">
+        <input type="checkbox" id="extension-toggle" checked>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="product-info" id="product-info-container" style="display: none;">
+      <img id="product-image" src="" alt="Product Image">
+      <h2 id="product-title">Loading product...</h2>
+    </div>
+
+    <div id="main-content">
+      <div class="rating-section">
+        <h3>Your Rating:</h3>
+        <div class="stars" id="star-rating">
+          <span class="star" data-value="1">&#9733;</span>
+          <span class="star" data-value="2">&#9733;</span>
+          <span class="star" data-value="3">&#9733;</span>
+          <span class="star" data-value="4">&#9733;</span>
+          <span class="star" data-value="5">&#9733;</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="gemini-btn" class="action-btn gemini">Generate with Gemini</button>
+        <button id="wordhero-btn" class="action-btn wordhero">Generate with WordHero.ai</button>
+      </div>
+    </div>
+    
+    <div id="disabled-message" class="disabled-message" style="display: none;">
+      Extension is turned off.
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+

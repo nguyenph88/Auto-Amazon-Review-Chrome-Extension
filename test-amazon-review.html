@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Review Page Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .review-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .star-rating {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .star {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .star:hover, .star.active {
+            color: #FFD700;
+        }
+        .review-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        .submit-btn {
+            background: #FF9900;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .submit-btn:hover {
+            background: #e68a00;
+        }
+        .test-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .test-info h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Amazon Review Page Test</h1>
+            <p>This page simulates an Amazon review page to test the AI Review Assistant extension</p>
+        </div>
+
+        <div class="test-info">
+            <h3>🧪 Extension Testing</h3>
+            <p><strong>URL Pattern:</strong> <code>https://www.amazon.com/review/review-your-purchases/?asin=B0D25YVN2f</code></p>
+            <p><strong>Expected Behavior:</strong> The extension should be enabled and show the popup when you click the extension icon in the toolbar.</p>
+            <p><strong>Content Script:</strong> Should inject an "🤖 Generate AI Review" button above the review form.</p>
+        </div>
+
+        <div class="review-form">
+            <h2>Write a Review</h2>
+            <p>Product: Test Product (ASIN: B0D25YVN2f)</p>
+            
+            <div class="star-rating" data-hook="ryp-star-rating-card">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+
+            <div data-hook="ryp-review-text-input">
+                <label for="review-text">Your Review:</label>
+                <textarea 
+                    id="review-text" 
+                    class="review-input" 
+                    placeholder="Share your thoughts about this product..."
+                ></textarea>
+            </div>
+
+            <button class="submit-btn">Submit Review</button>
+        </div>
+
+        <div class="test-info">
+            <h3>🔍 What to Check</h3>
+            <ol>
+                <li>Open Chrome DevTools Console (F12) to see extension logs</li>
+                <li>Look for the "🤖 Generate AI Review" button above the review form</li>
+                <li>Click the extension icon in the toolbar - popup should show "AI Review Assistant - Ready!"</li>
+                <li>Try navigating to a non-review page - extension should be disabled</li>
+            </ol>
+        </div>
+
+        <div class="test-info">
+            <h3>📝 Test Scenarios</h3>
+            <ul>
+                <li><strong>Review Page:</strong> Extension enabled, button injected, popup shows review interface</li>
+                <li><strong>Non-Review Page:</strong> Extension disabled, popup shows "Extension Not Available" message</li>
+                <li><strong>Extension Toggle:</strong> Turn off extension to see disabled state</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simulate star rating functionality
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                const value = this.dataset.value;
+                document.querySelectorAll('.star').forEach(s => {
+                    s.classList.remove('active');
+                    if (s.dataset.value <= value) {
+                        s.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Log page load for testing
+        console.log('Amazon Review Test Page Loaded');
+        console.log('URL:', window.location.href);
+        console.log('Extension should detect this as a review page');
+    </script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+I want to create a Chrome extension, it will be a private extension as I do not publish it online, so there should not be any strict restrction that I need to follow because I can load it from a local file. To summarize, the extension will do the following: when I'm on an amazon review page (by looking at the product URL), it will notify me on the taskbar that I can generate a review for this. and a write review button should appear somewhere. When I click on the write review button and select how many star on the extension, it should use other website that is already open, automate the task by using the finding the elements, send in the title, star etc. Then when the review is generated on a third party site website, copy that and paste it back into amazon review and select the correct number of stars, at this point do not submit, but wait for user to actually click on submit button on amazon review site. No sigin needed for amazon or any other AI site, we assume that user already logged in for those site.
+
+Additional information:
+- When user is on a review page with this url pattern : https://www.amazon.com/review/review-your-purchases/?asin=B01N2ZK39H, this is when the extension can be triggered
+- Notice that there is an asin= code, this is the product asin
+- With the asin we can go to this url https://www.amazon.com/dp/<asin> this is where we can extract the information of the product, like product title and images
+
+Other requirements:
+- In the extension, for now let's only let the user choose 2 options: Generate with Gemini and Generate with WordHero.ai, we will add more service later
+- Keep the code in module, and in separated files for easy to maintain and fix
+- For each of the option like Gemini or WordHero, keep the module to locate the element, submit text etc and other functions related to each of the service in a separated file
+- Provide a user friendly UI/UX for the extension
+- Write simple code and understandable code
+- Have a button to turn off the extension so we don't waste resources and RAM
+
+
+
+When viewing the product page, the product title should be in this element: <span id="productTitle" class="a-size-large product-title-word-break">        Hoka Women's Clifton 9       </span>
+
+
+
+The image of the products hould be under this element:
+
+<div id="imgTagWrapperId" class="imgTagWrapper" role="button" tabindex="0" style="height: 700px;">
+
+                        <img alt="Hoka Women&amp;#39;s Clifton 9" src="https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX679_.jpg" data-old-hires="https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SL1100_.jpg" onload="markFeatureRenderForImageBlock(); if(this.width/this.height &gt; 0.77){this.className += ' a-stretch-horizontal'}else{this.className += ' a-stretch-vertical'};this.onload='';setCSMReq('af');if(typeof addlongPoleTag === 'function'){ addlongPoleTag('af','desktop-image-atf-marker');};setCSMReq('cf')" data-a-image-name="landingImage" class="a-dynamic-image a-stretch-horizontal" id="landingImage" data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX466_.jpg&quot;:[387,466],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX342_.jpg&quot;:[284,342],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX425_.jpg&quot;:[353,425],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX522_.jpg&quot;:[434,522],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX679_.jpg&quot;:[564,679],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX569_.jpg&quot;:[473,569],&quot;https://m.media-amazon.com/images/I/51AFFoTo2WL._AC_SX385_.jpg&quot;:[320,385]}" style="max-width: 685px; max-height: 700px;"> </div>
+
+
+
+For the wordhero, user needs to be on this page: https://app.wordhero.co/home?t=1627274185433x194640679954267040&reload=no
+
+
+
+The element to enter the product title and number of star in text should be  <textarea class="bubble-element MultiLineInput a1756931919304x2157" style="place-self: start; min-width: 0px; min-height: 38px; width: calc(100% + 0px); margin: 0px; z-index: 2; border-top: none; border-right: none; border-bottom: 3px solid rgb(218, 218, 218); border-left: none; border-image: initial; background-color: transparent; overflow: hidden; overflow-wrap: break-word; border-radius: 0px; font-family: Inter; font-size: 16px; font-weight: 500; color: rgb(0, 0, 0); line-height: 1.5; padding: 10px; opacity: 1; height: 44px;" tabindex="1" data-gramm_editor="false" maxlength="500" placeholder="e.g. WordHero, AI writing tool. Easy to use interface." rows="1" id="textfield_1"></textarea>
+
+
+
+The submit button should be <button class="clickable-element bubble-element Button cmaZpaH" style="background-color: rgb(41, 62, 229); place-self: center; min-width: 0px; min-height: 45px; max-height: 45px; width: calc(100% + 0px); height: 45px; margin: 0px; z-index: 2; font-family: Inter; font-size: 14px; font-weight: 600; color: rgb(255, 255, 255); text-align: center; letter-spacing: 1px; line-height: 1; border-radius: 5px; opacity: 1; cursor: pointer; box-shadow: none;" tabindex="-1">WRITE FOR ME</button>
+
+
+
+The copy to clipboard button will be here <button class="clickable-element bubble-element Icon cmaZpr" title="Copy all" id="clicktocopy_text_all" tabindex="-1" style="display: flex; color: rgb(32, 32, 32); border-style: solid; border-width: 2px; border-color: rgba(32, 32, 32, 0); border-radius: 0px; opacity: 1; cursor: pointer; top: 0px; left: 0px; width: 27px; height: 27px; z-index: 1;"><svg viewBox="0 0 32 32" data-icon-set="fa" style="width: 100%; height: 100%;"><use width="32" height="32" href="/static/icon_libraries/fontawesome-4.7.0.svg#fa-copy"></use></svg></button>

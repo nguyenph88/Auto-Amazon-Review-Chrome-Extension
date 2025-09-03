@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Debug Test</title>
+</head>
+<body>
+    <h1>Extension Debug Test</h1>
+    <p>This page is for testing if the Chrome extension background script is running.</p>
+    <p>Check the browser console for extension logs.</p>
+    <p>Current URL: <span id="current-url"></span></p>
+    
+    <h2>Test Steps:</h2>
+    <ol>
+        <li>Open browser console (F12)</li>
+        <li>Look for "Background script loaded" message</li>
+        <li>Navigate to Amazon review page</li>
+        <li>Check if icon changes color</li>
+    </ol>
+    
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+        
+        // Test if we can access chrome APIs
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            console.log("Chrome extension APIs available");
+            console.log("Extension ID:", chrome.runtime.id);
+        } else {
+            console.log("Chrome extension APIs NOT available");
+        }
+    </script>
+</body>
+</html>
+

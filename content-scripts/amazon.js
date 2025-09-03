@@ -1,66 +1,250 @@
-// content-scripts/amazon.js
+// AI Review Assistant Content Script for Amazon Review Pages
+console.log("AI Review Assistant: Content script loaded on:", window.location.href);
 
-const createReviewButton = () => {
-  // Check if the button already exists to prevent duplicates
+// Check if this is an Amazon review page
+function isReviewPage() {
+  const url = window.location.href;
+  return url.includes('amazon.com/review/') || url.includes('review-your-purchases');
+}
+
+// Function to extract ASIN from URL
+function extractASIN() {
+  try {
+    const url = window.location.href;
+    const urlObj = new URL(url);
+    const asin = urlObj.searchParams.get('asin');
+    if (asin) {
+      console.log("AI Review Assistant: ASIN extracted using URLSearchParams:", asin);
+      return asin;
+    }
+  } catch (error) {
+    console.error("AI Review Assistant: Error extracting ASIN:", error);
+  }
+  
+  // Fallback to regex if URLSearchParams fails
+  const url = window.location.href;
+  const asinMatch = url.match(/[?&]asin=([A-Z0-9]+)/);
+  if (asinMatch && asinMatch[1]) {
+    console.log("AI Review Assistant: ASIN extracted using regex fallback:", asinMatch[1]);
+    return asinMatch[1];
+  }
+  
+  return null;
+}
+
+// Function to inject the AI review button
+function injectAIReviewButton() {
+  // Check if button already exists
   if (document.getElementById('ai-review-button')) {
     return;
   }
 
-  // Create the button element
-  const button = document.createElement('button');
-  button.innerText = '✍️ Write Review with AI';
-  button.id = 'ai-review-button';
-
-  // --- Styling the button ---
-  // Makes it look modern and noticeable, similar to Amazon's UI
-  Object.assign(button.style, {
-    display: 'inline-block',
-    padding: '10px 20px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#0F1111',
-    backgroundColor: '#FFD814',
-    border: '1px solid #FCD200',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    boxShadow: '0 2px 5px 0 rgba(213,217,217,.5)',
-    margin: '20px 0 10px 0'
-  });
-
-  // Add hover effect
-  button.addEventListener('mouseover', () => {
-    button.style.backgroundColor = '#F7CA00';
-  });
-  button.addEventListener('mouseout', () => {
-    button.style.backgroundColor = '#FFD814';
-  });
+  // Look for the specific review textarea first
+  const reviewTextarea = document.querySelector('textarea#reviewText[name="reviewText"]');
   
-  // Add click handler for future phases
-  button.addEventListener('click', (e) => {
-      e.preventDefault();
-      alert("Review generation process will start here!");
-  });
+  if (reviewTextarea) {
+    console.log("AI Review Assistant: Found review textarea, injecting button");
+    
+    // Create the AI review button
+    const button = document.createElement('button');
+    button.innerHTML = '🤖 Generate AI Review';
+    button.id = 'ai-review-button';
+    button.className = 'ai-review-btn';
+    button.style.cssText = `
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin: 8px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      display: inline-block;
+      vertical-align: top;
+    `;
 
+    // Add hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'translateY(-1px)';
+      button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    });
 
-  // Find a good place to inject the button.
-  // The element with the product image and title seems like a good anchor.
-  const targetContainer = document.querySelector('.ryp__product-info-wrapper');
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'translateY(0)';
+      button.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    });
+
+    // Add click handler
+    button.addEventListener('click', () => {
+      console.log("AI Review Assistant: Generate AI Review button clicked");
+      
+      // Extract ASIN from URL
+      const asin = extractASIN();
+      if (asin) {
+        console.log("AI Review Assistant: ASIN extracted:", asin);
+        
+        // Open the popup and send message to it
+        chrome.runtime.sendMessage({
+          action: 'openPopupAndLoadProduct',
+          asin: asin
+        });
+      } else {
+        alert("Could not extract product ASIN from URL");
+      }
+    });
+
+    // Create a container div to hold both the textarea and button
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: relative;
+      margin-bottom: 15px;
+    `;
+    
+    // Insert the container before the textarea
+    reviewTextarea.parentNode.insertBefore(container, reviewTextarea);
+    
+    // Move the textarea into the container
+    container.appendChild(reviewTextarea);
+    
+    // Add the button below the textarea
+    container.appendChild(button);
+    
+    console.log("AI Review Assistant: Button injected successfully near textarea");
+    return;
+  }
+
+  // Fallback: Look for the review form or rating section
+  const targetSelectors = [
+    'div[data-hook="ryp-review-text-input"]',
+    'div[data-hook="ryp-star-rating-card"]',
+    '#ryp-review-your-purchases-form',
+    'form',
+    '.ryp-review-form'
+  ];
+
+  let targetContainer = null;
+  for (const selector of targetSelectors) {
+    targetContainer = document.querySelector(selector);
+    if (targetContainer) {
+      console.log("AI Review Assistant: Found fallback target container:", selector);
+      break;
+    }
+  }
 
   if (targetContainer) {
-    // Appending it after the product info container
-    targetContainer.parentNode.insertBefore(button, targetContainer.nextSibling);
-    console.log('AI Review button added to the page.');
-  } else {
-    console.error('Could not find a target element to place the AI review button.');
-  }
-};
+    // Create the AI review button
+    const button = document.createElement('button');
+    button.innerHTML = '🤖 Generate AI Review';
+    button.id = 'ai-review-button';
+    button.className = 'ai-review-btn';
+    button.style.cssText = `
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 15px 0;
+      width: 100%;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    `;
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "show_write_review_button") {
-    createReviewButton();
-    sendResponse({ status: "button shown" });
+    // Add hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'translateY(-2px)';
+      button.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'translateY(0)';
+      button.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+    });
+
+          // Add click handler
+      button.addEventListener('click', () => {
+        console.log("AI Review Assistant: Generate AI Review button clicked");
+        
+        // Extract ASIN from URL
+        const asin = extractASIN();
+        if (asin) {
+          console.log("AI Review Assistant: ASIN extracted:", asin);
+          
+          // Open the popup and send message to it
+          chrome.runtime.sendMessage({
+            action: 'openPopupAndLoadProduct',
+            asin: asin
+          });
+        } else {
+          alert("Could not extract product ASIN from URL");
+        }
+      });
+
+    // Insert the button at the top of the target container
+    targetContainer.insertBefore(button, targetContainer.firstChild);
+    console.log("AI Review Assistant: Button injected successfully");
+  } else {
+    console.log("AI Review Assistant: No target container found");
   }
-  return true; // Keep the message channel open for async response
-});
+}
+
+// Main initialization function
+function initialize() {
+  if (isReviewPage()) {
+    console.log("AI Review Assistant: Review page detected, initializing...");
+    
+    // Try to inject the button immediately
+    injectAIReviewButton();
+    
+    // Also try after delays in case the page loads dynamically
+    setTimeout(injectAIReviewButton, 1000);
+    setTimeout(injectAIReviewButton, 3000);
+    
+    // Listen for dynamic content changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          // Check if any of the added nodes contain our target selectors
+          const hasTargetContent = Array.from(mutation.addedNodes).some(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              return node.querySelector && (
+                node.querySelector('textarea#reviewText[name="reviewText"]') ||
+                node.querySelector('div[data-hook="ryp-review-text-input"]') ||
+                node.querySelector('div[data-hook="ryp-star-rating-card"]') ||
+                node.querySelector('#ryp-review-your-purchases-form')
+              );
+            }
+            return false;
+          });
+          
+          if (hasTargetContent) {
+            console.log("AI Review Assistant: Dynamic content detected, injecting button");
+            setTimeout(injectAIReviewButton, 100);
+          }
+        }
+      });
+    });
+    
+    // Start observing
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+  } else {
+    console.log("AI Review Assistant: Not a review page, skipping initialization");
+  }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initialize);
+} else {
+  initialize();
+}
 
