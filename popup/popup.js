@@ -21,11 +21,82 @@ let fillBtn;
 // WordHero Automation instance
 let wordheroAutomation;
 
+// Function to generate meaningful title from keyword
+function generateTitleFromKeyword(keyword, rating) {
+    const titleTemplates = {
+        1: [
+            `A Complete Failure - ${keyword}`,
+            `Do Not Buy: This is a ${keyword}`,
+            `My Experience: A Total ${keyword}`,
+            `Unfortunately, a ${keyword}`,
+            `Regretting this purchase - ${keyword}`,
+            `A major letdown`,
+            `Fails to deliver on every promise`,
+            `Save your money, this is a ${keyword}`,
+            `Extremely disappointed`,
+            `If I could give zero stars, I would`
+        ],
+        2: [
+            `Has some serious flaws`,
+            `Not as good as I hoped`,
+            `A ${keyword} experience`,
+            `I expected more than this`,
+            `Deeply flawed and ${keyword}`,
+            `Frustrating to use`,
+            `Barely functional, very ${keyword}`,
+            `Wouldn't recommend this product`,
+            `Significant drawbacks to consider`,
+            `Underwhelming and not worth it`
+        ],
+        3: [
+            `It's just okay`,
+            `An average product`,
+            `Decent, but that's all`,
+            `My thoughts: It's ${keyword}`,
+            `Nothing special here`,
+            `Gets the job done, but it's ${keyword}`,
+            `Three stars for a reason`,
+            `It has pros and cons`,
+            `Fair for the price`,
+            `Unremarkable, but functional`
+        ],
+        4: [
+            `A very solid choice!`,
+            `I'm impressed, it's ${keyword}`,
+            `Great value and high quality`,
+            `Almost perfect, very ${keyword}`,
+            `Happy with this purchase`,
+            `Works very well`,
+            `Would definitely recommend`,
+            `A solid 4-star product`,
+            `Mostly positive experience`,
+            `A great find!`
+        ],
+        5: [
+            `Absolutely perfect!`,
+            `Exceeded all expectations!`,
+            `A must-have product`,
+            `Fantastic quality and truly ${keyword}`,
+            `Top-notch in every way`,
+            `Couldn't be happier with this!`,
+            `Five stars all the way`,
+            `An incredible, ${keyword} product`,
+            `Highly recommend this purchase`,
+            `Flawless performance!`
+        ]
+    };
+    
+    const templates = titleTemplates[rating] || titleTemplates[5];
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+    
+    return randomTemplate;
+}
+
 // Function to fill the review form on Amazon page
-function fillReviewForm(reviewText, keyword, rating) {
+function fillReviewForm(reviewText, reviewTitle, rating) {
     console.log('=== FILLING REVIEW FORM ===');
     console.log('Review text length:', reviewText.length);
-    console.log('Keyword:', keyword);
+    console.log('Review title:', reviewTitle);
     console.log('Rating:', rating);
     
     try {
@@ -40,13 +111,13 @@ function fillReviewForm(reviewText, keyword, rating) {
             console.log('Review text field not found');
         }
         
-        // 2. Fill the review title field with keyword
-        const reviewTitle = document.querySelector('input[id="reviewTitle"]');
-        if (reviewTitle) {
-            reviewTitle.value = keyword;
-            reviewTitle.dispatchEvent(new Event('input', { bubbles: true }));
-            reviewTitle.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log('Review title field filled with keyword:', keyword);
+        // 2. Fill the review title field with generated title
+        const reviewTitleField = document.querySelector('input[id="reviewTitle"]');
+        if (reviewTitleField) {
+            reviewTitleField.value = reviewTitle;
+            reviewTitleField.dispatchEvent(new Event('input', { bubbles: true }));
+            reviewTitleField.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('Review title field filled with title:', reviewTitle);
         } else {
             console.log('Review title field not found');
         }
@@ -1199,10 +1270,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
+            // Generate meaningful title from keyword
+            const reviewTitle = generateTitleFromKeyword(keyword, currentRating);
+            
             console.log('Filling review form with:', {
                 reviewText: reviewText.substring(0, 50) + '...',
                 keyword: keyword,
-                rating: currentRating
+                rating: currentRating,
+                reviewTitle: reviewTitle
             });
             
             // Get the current active tab
@@ -1212,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: fillReviewForm,
-                args: [reviewText, keyword, currentRating]
+                args: [reviewText, reviewTitle, currentRating]
             });
             
             console.log('Review form filled successfully');
