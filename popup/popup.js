@@ -81,12 +81,26 @@ class WordHeroAutomation {
 
             // Wait for the form to load
             console.log('Step 3: Waiting for form to load...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
             // Fill in the product information
             console.log('Step 4: Filling product information...');
             const fillResult = await this.fillProductInformation(tabId);
             console.log('Step 4: Product information fill result:', fillResult);
+
+            // Click the "WRITE FOR ME" button
+            console.log('Step 5: Clicking WRITE FOR ME button...');
+            const writeResult = await this.clickWriteForMeButton(tabId);
+            console.log('Step 5: WRITE FOR ME button click result:', writeResult);
+
+            // Wait for AI to finish writing (monitor button text changes)
+            console.log('Step 6: Waiting for AI to finish writing...');
+            await this.waitForWritingToComplete(tabId);
+
+            // Extract generated content and save to localStorage
+            console.log('Step 7: Extracting generated content...');
+            const contentResult = await this.extractGeneratedContent(tabId);
+            console.log('Step 7: Content extraction result:', contentResult);
 
             console.log('WordHero automation setup complete');
         } catch (error) {
@@ -427,6 +441,338 @@ class WordHeroAutomation {
                     resolve(results[0].result);
                 } else {
                     reject(new Error('Failed to fill product information'));
+                }
+            });
+        });
+    }
+
+    // Click the "WRITE FOR ME" button
+    async clickWriteForMeButton(tabId) {
+        const clickFunction = () => {
+            console.log('=== DEBUGGING WRITE FOR ME BUTTON CLICK ===');
+            console.log('Current URL:', window.location.href);
+            console.log('Page title:', document.title);
+            
+            // Try multiple selectors to find the WRITE FOR ME button
+            const selectors = [
+                'button.clickable-element.bubble-element.Button.cmaZpaH',
+                'button[class*="cmaZpaH"]',
+                'button:contains("WRITE FOR ME")',
+                'button'
+            ];
+            
+            console.log('Trying WRITE FOR ME button selectors:', selectors);
+            
+            for (let selector of selectors) {
+                console.log('Trying selector:', selector);
+                const elements = document.querySelectorAll(selector);
+                console.log('Found', elements.length, 'elements with selector:', selector);
+                
+                for (let i = 0; i < elements.length; i++) {
+                    const element = elements[i];
+                    const text = element.textContent.trim();
+                    console.log('Element', i, 'text:', text);
+                    
+                    if (text === 'WRITE FOR ME') {
+                        console.log('FOUND WRITE FOR ME button!');
+                        console.log('Element details:', {
+                            tagName: element.tagName,
+                            className: element.className,
+                            id: element.id,
+                            textContent: element.textContent
+                        });
+                        
+                        // Check if element is visible and clickable
+                        const rect = element.getBoundingClientRect();
+                        const isVisible = rect.width > 0 && rect.height > 0;
+                        console.log('Element visibility:', {
+                            isVisible: isVisible,
+                            rect: rect,
+                            computedStyle: window.getComputedStyle(element).display
+                        });
+                        
+                        if (isVisible) {
+                            console.log('Element is visible, attempting to click...');
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            
+                            // Try immediate click first
+                            try {
+                                element.click();
+                                console.log('WRITE FOR ME button click executed successfully!');
+                                return { success: true, message: 'WRITE FOR ME button clicked', selector: selector };
+                            } catch (clickError) {
+                                console.log('Click failed:', clickError);
+                                // Try with setTimeout as fallback
+                                setTimeout(() => {
+                                    try {
+                                        element.click();
+                                        console.log('Delayed WRITE FOR ME click executed successfully!');
+                                    } catch (delayedError) {
+                                        console.log('Delayed click also failed:', delayedError);
+                                    }
+                                }, 500);
+                                return { success: true, message: 'WRITE FOR ME button click attempted', selector: selector };
+                            }
+                        } else {
+                            console.log('WRITE FOR ME button found but not visible');
+                            return { success: false, message: 'WRITE FOR ME button found but not visible', selector: selector };
+                        }
+                    }
+                }
+            }
+            
+            // Debug: Log all buttons found
+            const allButtons = document.querySelectorAll('button');
+            const buttonTexts = Array.from(allButtons).map((button, index) => ({
+                index: index,
+                text: button.textContent.trim(),
+                className: button.className,
+                id: button.id
+            }));
+            console.log('All buttons found:', buttonTexts);
+            
+            return { 
+                success: false, 
+                message: 'WRITE FOR ME button not found', 
+                foundButtons: buttonTexts
+            };
+        };
+
+        return new Promise((resolve, reject) => {
+            console.log('Attempting to click WRITE FOR ME button in tab:', tabId);
+            
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: clickFunction
+            }, (results) => {
+                console.log('WRITE FOR ME button click script injection completed. Results:', results);
+                
+                if (chrome.runtime.lastError) {
+                    console.error('WRITE FOR ME button click script execution error:', chrome.runtime.lastError);
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (results && results[0]) {
+                    console.log('WRITE FOR ME button click script execution result:', results[0].result);
+                    resolve(results[0].result);
+                } else {
+                    console.error('No results returned from WRITE FOR ME button click script');
+                    reject(new Error('No results returned from WRITE FOR ME button click script'));
+                }
+            });
+        });
+    }
+
+    // Wait for AI writing to complete by monitoring button text changes
+    async waitForWritingToComplete(tabId, maxWaitTime = 60000) {
+        console.log('Starting to monitor button text for writing completion...');
+        const startTime = Date.now();
+        
+        return new Promise((resolve, reject) => {
+            const checkButtonText = async () => {
+                try {
+                    const result = await this.checkWriteButtonStatus(tabId);
+                    console.log('Button status check result:', result);
+                    
+                    if (result.success) {
+                        if (result.isWriting) {
+                            console.log('AI is still writing, waiting...');
+                            
+                            // Check if we've exceeded the maximum wait time
+                            if (Date.now() - startTime > maxWaitTime) {
+                                reject(new Error(`Timeout waiting for AI to finish writing. Waited ${maxWaitTime}ms`));
+                                return;
+                            }
+                            
+                            // Continue checking every 2 seconds
+                            setTimeout(checkButtonText, 2000);
+                        } else {
+                            console.log('AI writing completed! Button text:', result.buttonText);
+                            resolve(result);
+                        }
+                    } else {
+                        console.log('Could not check button status, assuming writing is complete');
+                        resolve(result);
+                    }
+                } catch (error) {
+                    console.error('Error checking button status:', error);
+                    reject(error);
+                }
+            };
+            
+            // Start checking
+            checkButtonText();
+        });
+    }
+
+    // Check the current status of the write button
+    async checkWriteButtonStatus(tabId) {
+        const checkFunction = () => {
+            console.log('=== CHECKING WRITE BUTTON STATUS ===');
+            console.log('Current URL:', window.location.href);
+            
+            // Try multiple selectors to find the write button
+            const selectors = [
+                'button.clickable-element.bubble-element.Button.cmaZpaH',
+                'button[class*="cmaZpaH"]',
+                'button'
+            ];
+            
+            for (let selector of selectors) {
+                const elements = document.querySelectorAll(selector);
+                
+                for (let element of elements) {
+                    const text = element.textContent.trim();
+                    console.log('Found button with text:', text);
+                    
+                    // Check if this is the write button (contains "WRITE" or "*WRITING*")
+                    if (text.includes('WRITE') || text.includes('WRITING')) {
+                        console.log('Found write button! Text:', text);
+                        
+                        // Check if it's currently writing
+                        const isWriting = text.includes('*WRITING*') || text.includes('WRITING');
+                        
+                        return {
+                            success: true,
+                            buttonText: text,
+                            isWriting: isWriting,
+                            element: {
+                                tagName: element.tagName,
+                                className: element.className,
+                                id: element.id
+                            }
+                        };
+                    }
+                }
+            }
+            
+            return {
+                success: false,
+                message: 'Write button not found',
+                buttonText: null,
+                isWriting: false
+            };
+        };
+
+        return new Promise((resolve, reject) => {
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: checkFunction
+            }, (results) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error checking button status:', chrome.runtime.lastError);
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (results && results[0]) {
+                    resolve(results[0].result);
+                } else {
+                    reject(new Error('No results returned from button status check'));
+                }
+            });
+        });
+    }
+
+    // Extract generated content and save to localStorage
+    async extractGeneratedContent(tabId) {
+        const extractFunction = () => {
+            console.log('=== EXTRACTING GENERATED CONTENT ===');
+            console.log('Current URL:', window.location.href);
+            console.log('Page title:', document.title);
+            
+            // Try multiple selectors to find the generated content
+            const selectors = [
+                'div#clicktocopy_text_1',
+                'div[class*="cmaZpy"]',
+                'div[class*="bubble-element Text"]',
+                'div[class*="clicktocopy_text"]'
+            ];
+            
+            console.log('Trying content selectors:', selectors);
+            
+            for (let selector of selectors) {
+                console.log('Trying selector:', selector);
+                const elements = document.querySelectorAll(selector);
+                console.log('Found', elements.length, 'elements with selector:', selector);
+                
+                for (let i = 0; i < elements.length; i++) {
+                    const element = elements[i];
+                    const id = element.id;
+                    const text = element.textContent.trim();
+                    
+                    console.log('Element', i, 'details:', {
+                        id: id,
+                        className: element.className,
+                        textLength: text.length,
+                        textPreview: text.substring(0, 100) + '...'
+                    });
+                    
+                    if (id === 'clicktocopy_text_1' || text.length > 50) {
+                        console.log('FOUND generated content!');
+                        console.log('Content details:', {
+                            id: id,
+                            className: element.className,
+                            textLength: text.length,
+                            fullText: text
+                        });
+                        
+                        // Save to localStorage
+                        try {
+                            localStorage.setItem('generatedReview', text);
+                            console.log('Generated review saved to localStorage');
+                            
+                            return {
+                                success: true,
+                                message: 'Generated content extracted and saved',
+                                content: text,
+                                contentLength: text.length,
+                                selector: selector
+                            };
+                        } catch (error) {
+                            console.error('Error saving to localStorage:', error);
+                            return {
+                                success: false,
+                                message: 'Failed to save content to localStorage',
+                                error: error.message
+                            };
+                        }
+                    }
+                }
+            }
+            
+            // Debug: Log all div elements found
+            const allDivs = document.querySelectorAll('div');
+            const divDetails = Array.from(allDivs).map((div, index) => ({
+                index: index,
+                id: div.id,
+                className: div.className,
+                textLength: div.textContent.trim().length,
+                textPreview: div.textContent.trim().substring(0, 50) + '...'
+            })).filter(div => div.textLength > 20); // Only show divs with substantial content
+            
+            console.log('All divs with content found:', divDetails);
+            
+            return { 
+                success: false, 
+                message: 'Generated content not found', 
+                foundDivs: divDetails
+            };
+        };
+
+        return new Promise((resolve, reject) => {
+            console.log('Attempting to extract generated content from tab:', tabId);
+            
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: extractFunction
+            }, (results) => {
+                console.log('Content extraction script injection completed. Results:', results);
+                
+                if (chrome.runtime.lastError) {
+                    console.error('Content extraction script execution error:', chrome.runtime.lastError);
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (results && results[0]) {
+                    console.log('Content extraction script execution result:', results[0].result);
+                    resolve(results[0].result);
+                } else {
+                    console.error('No results returned from content extraction script');
+                    reject(new Error('No results returned from content extraction script'));
                 }
             });
         });
