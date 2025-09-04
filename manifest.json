@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "https://www.amazon.com/*",
-    "https://app.wordhero.co/*"
+    "https://app.wordhero.co/*",
+    "https://gemini.google.com/*"
   ],
   "background": {
     "service_worker": "background.js"

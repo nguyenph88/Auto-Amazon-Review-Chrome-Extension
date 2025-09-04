@@ -18,8 +18,9 @@ let reviewTextarea;
 let pasteBtn;
 let fillBtn;
 
-// WordHero Automation instance
+// Automation instances
 let wordheroAutomation;
+let geminiAutomation;
 
 // Function to generate meaningful title from keyword
 function generateTitleFromKeyword(keyword, rating) {
@@ -283,6 +284,377 @@ async function fillReviewForm(reviewText, reviewTitle, rating, productImageUrl) 
         
     } catch (error) {
         console.error('Error filling review form:', error);
+    }
+}
+
+// Gemini Automation Class
+class GeminiAutomation {
+    constructor() {
+        this.geminiUrl = 'https://gemini.google.com/app/0da3ef851c88e70f';
+    }
+
+    async openGemini() {
+        try {
+            console.log('Opening Gemini...');
+            
+            // Create a new tab for Gemini (inactive initially)
+            const tab = await chrome.tabs.create({
+                url: this.geminiUrl,
+                active: false
+            });
+            
+            console.log('Gemini tab created:', tab.id);
+            
+            // Wait for tab to load
+            await this.waitForTabLoad(tab.id);
+            
+            // Setup Gemini automation
+            await this.setupGeminiAutomation(tab.id);
+            
+        } catch (error) {
+            console.error('Error opening Gemini:', error);
+            throw error;
+        }
+    }
+
+    async waitForTabLoad(tabId) {
+        return new Promise((resolve, reject) => {
+            const checkTab = async () => {
+                try {
+                    const tab = await chrome.tabs.get(tabId);
+                    if (tab.status === 'complete') {
+                        console.log('Gemini tab loaded');
+                        resolve();
+                    } else {
+                        setTimeout(checkTab, 500);
+                    }
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            checkTab();
+        });
+    }
+
+    async setupGeminiAutomation(tabId) {
+        try {
+            console.log('Setting up Gemini automation...');
+            
+            // Wait for page to be ready
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Get product data
+            const productData = this.getProductData();
+            if (!productData.title || !productData.keyword) {
+                throw new Error('Missing product data for Gemini automation');
+            }
+            
+            console.log('Product data for Gemini:', productData);
+            
+            // Create the prompt
+            const prompt = this.createGeminiPrompt(productData.title, productData.keyword);
+            console.log('Generated prompt:', prompt);
+            
+            // Fill the input field
+            await this.fillGeminiInput(tabId, prompt);
+            
+            // Submit the prompt
+            await this.submitGeminiPrompt(tabId);
+            
+            // Wait for content generation and click copy button
+            await this.waitForGenerationAndCopy(tabId);
+            
+            console.log('Gemini automation completed');
+            
+        } catch (error) {
+            console.error('Error in Gemini automation:', error);
+            throw error;
+        }
+    }
+
+    createGeminiPrompt(productTitle, keyword) {
+        return `Write a meaningful Amazon product review for "${productTitle}", less than 300 words. The review should be ${keyword.toLowerCase()}. Include specific details about the product, your experience using it, pros and cons, and whether you would recommend it to others. Make it sound authentic and helpful to other customers. Do not use CANVAS, without CANVAS, use original response, do not use emoji.`;
+    }
+
+    async fillGeminiInput(tabId, prompt) {
+        try {
+            console.log('Filling Gemini input field...');
+            
+            await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: (prompt) => {
+                    console.log('=== FILLING GEMINI INPUT ===');
+                    console.log('Prompt:', prompt);
+                    
+                    try {
+                        // Find the rich textarea element
+                        const textarea = document.querySelector('rich-textarea .ql-editor');
+                        if (!textarea) {
+                            throw new Error('Gemini textarea not found');
+                        }
+                        
+                        console.log('Found Gemini textarea:', textarea);
+                        
+                        // Clear any existing content
+                        textarea.innerHTML = '';
+                        
+                        // Set the prompt text
+                        textarea.textContent = prompt;
+                        
+                        // Trigger input events
+                        const events = ['input', 'change', 'blur'];
+                        for (const eventType of events) {
+                            const event = new Event(eventType, { 
+                                bubbles: true, 
+                                cancelable: true 
+                            });
+                            textarea.dispatchEvent(event);
+                            console.log(`Dispatched ${eventType} event`);
+                        }
+                        
+                        // Also try setting innerHTML with proper formatting
+                        textarea.innerHTML = `<p>${prompt}</p>`;
+                        
+                        // Focus the textarea
+                        textarea.focus();
+                        
+                        console.log('Gemini input filled successfully');
+                        
+                    } catch (error) {
+                        console.error('Error filling Gemini input:', error);
+                        throw error;
+                    }
+                },
+                args: [prompt]
+            });
+            
+            // Wait a bit for the input to be processed
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+        } catch (error) {
+            console.error('Error filling Gemini input:', error);
+            throw error;
+        }
+    }
+
+    async submitGeminiPrompt(tabId) {
+        try {
+            console.log('Submitting Gemini prompt...');
+            
+            await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    console.log('=== SUBMITTING GEMINI PROMPT ===');
+                    
+                    try {
+                        // Try to find the send button
+                        const sendButton = document.querySelector('button[aria-label*="Send"]') ||
+                                         document.querySelector('button[aria-label*="send"]') ||
+                                         document.querySelector('button[type="submit"]') ||
+                                         document.querySelector('.send-button') ||
+                                         document.querySelector('[data-testid="send-button"]');
+                        
+                        if (sendButton) {
+                            console.log('Found send button:', sendButton);
+                            sendButton.click();
+                            console.log('Send button clicked');
+                        } else {
+                            // Try pressing Enter key on the textarea
+                            const textarea = document.querySelector('rich-textarea .ql-editor');
+                            if (textarea) {
+                                console.log('Using Enter key to submit');
+                                const enterEvent = new KeyboardEvent('keydown', {
+                                    key: 'Enter',
+                                    code: 'Enter',
+                                    keyCode: 13,
+                                    which: 13,
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+                                textarea.dispatchEvent(enterEvent);
+                                
+                                // Also try keyup
+                                const enterUpEvent = new KeyboardEvent('keyup', {
+                                    key: 'Enter',
+                                    code: 'Enter',
+                                    keyCode: 13,
+                                    which: 13,
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+                                textarea.dispatchEvent(enterUpEvent);
+                                
+                                console.log('Enter key events dispatched');
+                            } else {
+                                throw new Error('No send button or textarea found');
+                            }
+                        }
+                        
+                        console.log('Gemini prompt submitted successfully');
+                        
+                    } catch (error) {
+                        console.error('Error submitting Gemini prompt:', error);
+                        throw error;
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error submitting Gemini prompt:', error);
+            throw error;
+        }
+    }
+
+    async waitForGenerationAndCopy(tabId) {
+        try {
+            console.log('Waiting for Gemini to generate content...');
+            
+            // Wait for the copy button to appear (indicating content is generated)
+            await this.waitForCopyButton(tabId);
+            
+            // Click the copy button
+            await this.clickCopyButton(tabId);
+            
+            console.log('Content copied to clipboard');
+            
+        } catch (error) {
+            console.error('Error waiting for generation and copying:', error);
+            // Don't throw error - this is a nice-to-have feature
+        }
+    }
+
+    async waitForCopyButton(tabId) {
+        return new Promise((resolve, reject) => {
+            const timeout = 60000; // 60 seconds timeout
+            const startTime = Date.now();
+            
+            const checkForCopyButton = async () => {
+                try {
+                    const copyButton = await chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        func: () => {
+                            // Try multiple selectors for the copy button
+                            const selectors = [
+                                'copy-button button[data-test-id="copy-button"]',
+                                'copy-button button[aria-label="Copy"]',
+                                'copy-button button[matTooltip="Copy response"]',
+                                'button[data-test-id="copy-button"]',
+                                'button[aria-label="Copy"]',
+                                'button[matTooltip="Copy response"]',
+                                'copy-button button',
+                                '.copy-button button'
+                            ];
+                            
+                            for (const selector of selectors) {
+                                const button = document.querySelector(selector);
+                                if (button && button.offsetParent !== null) { // Check if visible
+                                    console.log(`Found copy button with selector: ${selector}`);
+                                    return { found: true, selector: selector };
+                                }
+                            }
+                            
+                            return { found: false };
+                        }
+                    });
+                    
+                    if (copyButton && copyButton[0] && copyButton[0].result && copyButton[0].result.found) {
+                        console.log('Copy button found:', copyButton[0].result.selector);
+                        resolve();
+                        return;
+                    }
+                    
+                    // Check if timeout reached
+                    if (Date.now() - startTime > timeout) {
+                        reject(new Error('Copy button not found within timeout'));
+                        return;
+                    }
+                    
+                    // Check again in 2 seconds
+                    setTimeout(checkForCopyButton, 2000);
+                    
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            
+            // Start checking after a 3-second delay to allow for initial generation
+            setTimeout(checkForCopyButton, 3000);
+        });
+    }
+
+    async clickCopyButton(tabId) {
+        try {
+            console.log('Clicking copy button...');
+            
+            await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    console.log('=== CLICKING COPY BUTTON ===');
+                    
+                    try {
+                        // Try multiple selectors for the copy button
+                        const selectors = [
+                            'copy-button button[data-test-id="copy-button"]',
+                            'copy-button button[aria-label="Copy"]',
+                            'copy-button button[matTooltip="Copy response"]',
+                            'button[data-test-id="copy-button"]',
+                            'button[aria-label="Copy"]',
+                            'button[matTooltip="Copy response"]',
+                            'copy-button button',
+                            '.copy-button button'
+                        ];
+                        
+                        let copyButton = null;
+                        for (const selector of selectors) {
+                            copyButton = document.querySelector(selector);
+                            if (copyButton && copyButton.offsetParent !== null) { // Check if visible
+                                console.log(`Using copy button with selector: ${selector}`);
+                                break;
+                            }
+                        }
+                        
+                        if (copyButton) {
+                            // Scroll the button into view
+                            copyButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            
+                            // Wait a bit for scroll
+                            setTimeout(() => {
+                                // Focus and click
+                                copyButton.focus();
+                                copyButton.click();
+                                console.log('Copy button clicked successfully');
+                            }, 500);
+                            
+                        } else {
+                            throw new Error('Copy button not found');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error clicking copy button:', error);
+                        throw error;
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error clicking copy button:', error);
+            throw error;
+        }
+    }
+
+    getProductData() {
+        try {
+            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+            const selectedKeyword = localStorage.getItem('selectedKeyword') || '';
+            
+            return {
+                title: productData.title || '',
+                keyword: selectedKeyword
+            };
+        } catch (error) {
+            console.error('Error getting product data:', error);
+            return { title: '', keyword: '' };
+        }
     }
 }
 
@@ -1672,21 +2044,42 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle WordHero automation
         handleWordHeroGeneration();
       } else if (service === 'gemini') {
-        // Handle Gemini (existing logic)
-      if (!isReviewPage) {
-        alert("Please navigate to an Amazon review page to use this feature.");
-        return;
+        // Handle Gemini automation
+        handleGeminiGeneration();
       }
-      chrome.runtime.sendMessage({
-        action: "start_generation",
-        data: {
-          service: service,
-          rating: currentRating,
-          productData: productData
-        }
-      });
-      window.close();
     }
+
+    // Handle Gemini generation
+    async function handleGeminiGeneration() {
+      try {
+        // Check if we have product data and keyword
+        const productData = localStorage.getItem('productData');
+        const keyword = localStorage.getItem('selectedKeyword');
+        
+        if (!productData || !keyword) {
+          alert("Please load product information and select a star rating first.");
+          return;
+        }
+        
+        // Show loading message
+        geminiBtn.textContent = 'Opening Gemini...';
+        geminiBtn.disabled = true;
+        
+        // Open Gemini and start automation
+        await geminiAutomation.openGemini();
+        
+        // Reset button
+        geminiBtn.textContent = 'Generate with Gemini';
+        geminiBtn.disabled = false;
+        
+      } catch (error) {
+        console.error('Error in Gemini generation:', error);
+        alert('Error opening Gemini: ' + error.message);
+        
+        // Reset button
+        geminiBtn.textContent = 'Generate with Gemini';
+        geminiBtn.disabled = false;
+      }
     }
 
     // Handle WordHero generation
@@ -1700,9 +2093,6 @@ document.addEventListener('DOMContentLoaded', () => {
           alert("Please load product information and select a star rating first.");
           return;
         }
-
-        // Initialize WordHero automation
-        wordheroAutomation = new WordHeroAutomation();
         
         // Show loading message
         wordheroBtn.textContent = 'Opening WordHero...';
@@ -1728,6 +2118,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Initialize automation instances
+    wordheroAutomation = new WordHeroAutomation();
+    geminiAutomation = new GeminiAutomation();
+    
     // Initialize the extension
     initializeExtension();
 
