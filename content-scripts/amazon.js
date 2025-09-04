@@ -34,8 +34,8 @@ function extractASIN() {
 
 // Function to inject the AI review button
 function injectAIReviewButton() {
-  // Check if button already exists
-  if (document.getElementById('ai-review-button')) {
+  // Check if buttons already exist
+  if (document.getElementById('ai-review-button') || document.getElementById('fill-button')) {
     return;
   }
 
@@ -46,12 +46,12 @@ function injectAIReviewButton() {
     console.log("AI Review Assistant: Found review textarea, injecting button");
     
     // Create the AI review button
-    const button = document.createElement('button');
-    button.innerHTML = '🤖 Generate AI Review';
-    button.id = 'ai-review-button';
-    button.className = 'ai-review-btn';
-    button.type = 'button'; // Ensure it's not a submit button
-    button.style.cssText = `
+    const aiButton = document.createElement('button');
+    aiButton.innerHTML = '🤖 Generate AI Review';
+    aiButton.id = 'ai-review-button';
+    aiButton.className = 'ai-review-btn';
+    aiButton.type = 'button'; // Ensure it's not a submit button
+    aiButton.style.cssText = `
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       padding: 10px 16px;
@@ -60,26 +60,26 @@ function injectAIReviewButton() {
       font-weight: 600;
       font-size: 13px;
       cursor: pointer;
-      margin: 8px 0;
+      margin: 8px 8px 8px 0;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       transition: all 0.3s ease;
       display: inline-block;
       vertical-align: top;
     `;
 
-    // Add hover effects
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'translateY(-1px)';
-      button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    // Add hover effects for AI button
+    aiButton.addEventListener('mouseenter', () => {
+      aiButton.style.transform = 'translateY(-1px)';
+      aiButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
     });
 
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translateY(0)';
-      button.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    aiButton.addEventListener('mouseleave', () => {
+      aiButton.style.transform = 'translateY(0)';
+      aiButton.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
     });
 
-    // Add click handler
-    button.addEventListener('click', (event) => {
+    // Add click handler for AI button
+    aiButton.addEventListener('click', (event) => {
       console.log("AI Review Assistant: Generate AI Review button clicked");
       
       // Prevent form submission and default behavior
@@ -103,6 +103,69 @@ function injectAIReviewButton() {
       }
     });
 
+    // Create the Fill button
+    const fillButton = document.createElement('button');
+    fillButton.innerHTML = '📋 Fill';
+    fillButton.id = 'fill-button';
+    fillButton.className = 'fill-btn';
+    fillButton.type = 'button';
+    fillButton.style.cssText = `
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin: 8px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      display: inline-block;
+      vertical-align: top;
+    `;
+
+    // Add hover effects for Fill button
+    fillButton.addEventListener('mouseenter', () => {
+      fillButton.style.transform = 'translateY(-1px)';
+      fillButton.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    });
+
+    fillButton.addEventListener('mouseleave', () => {
+      fillButton.style.transform = 'translateY(0)';
+      fillButton.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    });
+
+    // Add click handler for Fill button
+    fillButton.addEventListener('click', async (event) => {
+      console.log("AI Review Assistant: Fill button clicked");
+      
+      // Prevent form submission and default behavior
+      event.preventDefault();
+      event.stopPropagation();
+      
+      try {
+        // Get text from clipboard
+        const clipboardText = await navigator.clipboard.readText();
+        
+        if (clipboardText) {
+          // Fill the textarea with clipboard content
+          reviewTextarea.value = clipboardText;
+          
+          // Trigger input event to ensure any listeners are notified
+          reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+          reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+          
+          console.log("AI Review Assistant: Text pasted from clipboard to textarea");
+        } else {
+          alert("No text found in clipboard. Please copy some text first.");
+        }
+      } catch (error) {
+        console.error("AI Review Assistant: Error reading clipboard:", error);
+        alert("Error reading clipboard. Please make sure you have copied some text.");
+      }
+    });
+
     // Create a container div to hold both the textarea and button
     const container = document.createElement('div');
     container.style.cssText = `
@@ -116,8 +179,9 @@ function injectAIReviewButton() {
     // Move the textarea into the container
     container.appendChild(reviewTextarea);
     
-    // Add the button below the textarea
-    container.appendChild(button);
+    // Add both buttons below the textarea
+    container.appendChild(aiButton);
+    container.appendChild(fillButton);
     
     console.log("AI Review Assistant: Button injected successfully near textarea");
     return;
@@ -142,13 +206,21 @@ function injectAIReviewButton() {
   }
 
   if (targetContainer) {
+    // Create a button container for both buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    `;
+
     // Create the AI review button
-    const button = document.createElement('button');
-    button.innerHTML = '🤖 Generate AI Review';
-    button.id = 'ai-review-button';
-    button.className = 'ai-review-btn';
-    button.type = 'button'; // Ensure it's not a submit button
-    button.style.cssText = `
+    const aiButton = document.createElement('button');
+    aiButton.innerHTML = '🤖 Generate AI Review';
+    aiButton.id = 'ai-review-button';
+    aiButton.className = 'ai-review-btn';
+    aiButton.type = 'button'; // Ensure it's not a submit button
+    aiButton.style.cssText = `
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       padding: 12px 20px;
@@ -157,51 +229,122 @@ function injectAIReviewButton() {
       font-weight: 600;
       font-size: 14px;
       cursor: pointer;
-      margin: 15px 0;
-      width: 100%;
+      flex: 1;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
       transition: all 0.3s ease;
     `;
 
-    // Add hover effects
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'translateY(-2px)';
-      button.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+    // Add hover effects for AI button
+    aiButton.addEventListener('mouseenter', () => {
+      aiButton.style.transform = 'translateY(-2px)';
+      aiButton.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
     });
 
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translateY(0)';
-      button.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+    aiButton.addEventListener('mouseleave', () => {
+      aiButton.style.transform = 'translateY(0)';
+      aiButton.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
     });
 
-          // Add click handler
-      button.addEventListener('click', (event) => {
-        console.log("AI Review Assistant: Generate AI Review button clicked");
+    // Add click handler for AI button
+    aiButton.addEventListener('click', (event) => {
+      console.log("AI Review Assistant: Generate AI Review button clicked");
+      
+      // Prevent form submission and default behavior
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Extract ASIN from URL
+      const asin = extractASIN();
+      if (asin) {
+        console.log("AI Review Assistant: ASIN extracted:", asin);
         
-        // Prevent form submission and default behavior
-        event.preventDefault();
-        event.stopPropagation();
+        // Open the popup and send message to it
+        chrome.runtime.sendMessage({
+          action: 'openPopupAndLoadProduct',
+          asin: asin
+        }).catch(error => {
+          console.error("AI Review Assistant: Error sending message:", error);
+        });
+      } else {
+        alert("Could not extract product ASIN from URL");
+      }
+    });
+
+    // Create the Fill button
+    const fillButton = document.createElement('button');
+    fillButton.innerHTML = '📋 Fill';
+    fillButton.id = 'fill-button';
+    fillButton.className = 'fill-btn';
+    fillButton.type = 'button';
+    fillButton.style.cssText = `
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      flex: 1;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    `;
+
+    // Add hover effects for Fill button
+    fillButton.addEventListener('mouseenter', () => {
+      fillButton.style.transform = 'translateY(-2px)';
+      fillButton.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+    });
+
+    fillButton.addEventListener('mouseleave', () => {
+      fillButton.style.transform = 'translateY(0)';
+      fillButton.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+    });
+
+    // Add click handler for Fill button
+    fillButton.addEventListener('click', async (event) => {
+      console.log("AI Review Assistant: Fill button clicked");
+      
+      // Prevent form submission and default behavior
+      event.preventDefault();
+      event.stopPropagation();
+      
+      try {
+        // Get text from clipboard
+        const clipboardText = await navigator.clipboard.readText();
         
-        // Extract ASIN from URL
-        const asin = extractASIN();
-        if (asin) {
-          console.log("AI Review Assistant: ASIN extracted:", asin);
+        if (clipboardText) {
+          // Find the review textarea
+          const reviewTextarea = document.querySelector('textarea#reviewText[name="reviewText"]');
           
-          // Open the popup and send message to it
-          chrome.runtime.sendMessage({
-            action: 'openPopupAndLoadProduct',
-            asin: asin
-          }).catch(error => {
-            console.error("AI Review Assistant: Error sending message:", error);
-          });
+          if (reviewTextarea) {
+            // Fill the textarea with clipboard content
+            reviewTextarea.value = clipboardText;
+            
+            // Trigger input event to ensure any listeners are notified
+            reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+            reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            console.log("AI Review Assistant: Text pasted from clipboard to textarea");
+          } else {
+            alert("Review textarea not found. Please make sure you're on the review page.");
+          }
         } else {
-          alert("Could not extract product ASIN from URL");
+          alert("No text found in clipboard. Please copy some text first.");
         }
-      });
+      } catch (error) {
+        console.error("AI Review Assistant: Error reading clipboard:", error);
+        alert("Error reading clipboard. Please make sure you have copied some text.");
+      }
+    });
 
-    // Insert the button at the top of the target container
-    targetContainer.insertBefore(button, targetContainer.firstChild);
-    console.log("AI Review Assistant: Button injected successfully");
+    // Add both buttons to the container
+    buttonContainer.appendChild(aiButton);
+    buttonContainer.appendChild(fillButton);
+
+    // Insert the button container at the top of the target container
+    targetContainer.insertBefore(buttonContainer, targetContainer.firstChild);
+    console.log("AI Review Assistant: Buttons injected successfully");
   } else {
     console.log("AI Review Assistant: No target container found");
   }
