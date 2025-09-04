@@ -23,8 +23,24 @@
     </div>
 
     <div id="main-content">
+      <!-- Primary Action Buttons - Moved to top for better accessibility -->
+      <div class="primary-actions">
+        <h3 class="section-title">Generate AI Review</h3>
+        <div class="action-buttons">
+          <button id="gemini-btn" class="action-btn gemini">
+            <span class="btn-icon">🤖</span>
+            <span class="btn-text">Gemini</span>
+          </button>
+          <button id="wordhero-btn" class="action-btn wordhero">
+            <span class="btn-icon">✍️</span>
+            <span class="btn-text">WordHero</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Rating Section -->
       <div class="rating-section">
-        <h3>Your Rating:</h3>
+        <h3 class="section-title">Your Rating:</h3>
         <div class="stars" id="star-rating">
           <span class="star" data-value="1">&#9733;</span>
           <span class="star" data-value="2">&#9733;</span>
@@ -37,18 +53,20 @@
         </div>
       </div>
 
-      <div class="actions">
-        <button id="gemini-btn" class="action-btn gemini">Generate with Gemini</button>
-        <button id="wordhero-btn" class="action-btn wordhero">Generate with WordHero.ai</button>
-      </div>
-
+      <!-- Review Editor Section -->
       <div class="review-editor">
-        <h3>Review Text:</h3>
-        <textarea id="review-textarea" placeholder="Paste your review here or generate one above..."></textarea>
+        <h3 class="section-title">Review Text:</h3>
         <div class="review-actions">
-          <button id="paste-btn" class="action-btn paste">Paste from Clipboard</button>
-          <button id="fill-btn" class="action-btn fill">Fill</button>
+          <button id="paste-btn" class="action-btn paste">
+            <span class="btn-icon">📋</span>
+            <span class="btn-text">Paste</span>
+          </button>
+          <button id="fill-btn" class="action-btn fill">
+            <span class="btn-icon">📝</span>
+            <span class="btn-text">Fill Form</span>
+          </button>
         </div>
+        <textarea id="review-textarea" placeholder="Paste your review here or generate one above..."></textarea>
       </div>
     </div>
     
