@@ -7,6 +7,258 @@ function isReviewPage() {
   return url.includes('amazon.com/review/') || url.includes('review-your-purchases');
 }
 
+// Function to generate meaningful title from keyword (copied from popup.js)
+function generateTitleFromKeyword(keyword, rating) {
+    const titleTemplates = {
+        1: [
+            `A Complete Failure - ${keyword}`,
+            `Do Not Buy: This is a ${keyword}`,
+            `My Experience: A Total ${keyword}`,
+            `Unfortunately, a ${keyword}`,
+            `Regret this purchase - ${keyword}`,
+            `A major letdown`,
+            `Fails to deliver on every promise`,
+            `Save your money, this is a ${keyword}`,
+            `Extremely disappointed`,
+            `If I could give zero stars, I would`
+        ],
+        2: [
+            `Has some serious flaws`,
+            `Not as good as I hoped`,
+            `A ${keyword} experience`,
+            `I expected more than this`,
+            `Deeply flawed and ${keyword}`,
+            `Frustrating to use`,
+            `Barely functional, very ${keyword}`,
+            `Wouldn't recommend this product`,
+            `Significant drawbacks to consider`,
+            `Underwhelming and not worth it`
+        ],
+        3: [
+            `It's just okay`,
+            `An average product`,
+            `Decent, but that's all`,
+            `My thoughts: It's ${keyword}`,
+            `Nothing special here`,
+            `Gets the job done, but it's ${keyword}`,
+            `Three stars for a reason`,
+            `It has pros and cons`,
+            `Fair for the price`,
+            `Unremarkable, but functional`
+        ],
+        4: [
+            `A very solid choice!`,
+            `I'm impressed, it's ${keyword}`,
+            `Great value and high quality`,
+            `Almost perfect, very ${keyword}`,
+            `Happy with this purchase`,
+            `Works very well`,
+            `Would definitely recommend`,
+            `A solid 4-star product`,
+            `Mostly positive experience`,
+            `A great find!`
+        ],
+        5: [
+            `Absolutely perfect!`,
+            `Exceeded all expectations!`,
+            `A must-have product`,
+            `Fantastic quality and truly ${keyword}`,
+            `Top-notch in every way`,
+            `Couldn't be happier with this!`,
+            `Five stars all the way`,
+            `An incredible, ${keyword} product`,
+            `Highly recommend this purchase`,
+            `Flawless performance!`
+        ]
+    };
+    
+    const templates = titleTemplates[rating] || titleTemplates[5];
+    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+    
+    return randomTemplate;
+}
+
+// Function to preformat text and remove markdown formatting
+function preformatText(text) {
+    if (!text) return '';
+    
+    console.log("AI Review Assistant: Preformatting text, original length:", text.length);
+    
+    // Remove markdown formatting
+    let formattedText = text
+        // Remove bold/italic markdown (**text**, *text*, __text__, _text_)
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        
+        // Remove strikethrough (~~text~~)
+        .replace(/~~([^~]+)~~/g, '$1')
+        
+        // Remove code blocks (```code``` and `code`)
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        
+        // Remove headers (# ## ### ####)
+        .replace(/^#{1,6}\s+/gm, '')
+        
+        // Remove links [text](url) and keep just the text
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        
+        // Remove horizontal rules (---, ***, ___)
+        .replace(/^[-*_]{3,}$/gm, '')
+        
+        // Remove blockquotes (> text)
+        .replace(/^>\s*/gm, '')
+        
+        // Remove list markers (- item, * item, + item, 1. item)
+        .replace(/^[\s]*[-*+]\s+/gm, '• ')
+        .replace(/^[\s]*\d+\.\s+/gm, '')
+        
+        // Clean up extra whitespace
+        .replace(/\n\s*\n\s*\n/g, '\n\n')  // Replace multiple newlines with double newlines
+        .replace(/[ \t]+/g, ' ')           // Replace multiple spaces/tabs with single space
+        .trim();                           // Remove leading/trailing whitespace
+    
+    console.log("AI Review Assistant: Preformatted text, new length:", formattedText.length);
+    console.log("AI Review Assistant: Text preview:", formattedText.substring(0, 100) + '...');
+    
+    return formattedText;
+}
+
+// Function to wait for an element to appear (copied from popup.js)
+function waitForElement(selector, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            resolve(element);
+            return;
+        }
+
+        const observer = new MutationObserver((mutations, obs) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                obs.disconnect();
+                resolve(element);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+        }, timeout);
+    });
+}
+
+// Function to find file input element (copied from popup.js)
+async function findFileInput() {
+    // Try multiple selectors for file input
+    const selectors = [
+        'input[type="file"]',
+        'input[accept*="image"]',
+        'input[accept*="video"]',
+        'input[accept*="media"]',
+        'input[data-testid*="file"]',
+        'input[data-testid*="upload"]',
+        'input[name*="file"]',
+        'input[name*="upload"]',
+        'input[id*="file"]',
+        'input[id*="upload"]'
+    ];
+
+    for (const selector of selectors) {
+        const input = document.querySelector(selector);
+        if (input) {
+            console.log(`Found file input with selector: ${selector}`);
+            return input;
+        }
+    }
+
+    // If no file input found, try to find it within the upload wrapper
+    const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+    if (uploadWrapper) {
+        const fileInput = uploadWrapper.querySelector('input[type="file"]');
+        if (fileInput) {
+            console.log('Found file input within upload wrapper');
+            return fileInput;
+        }
+    }
+
+    throw new Error('No file input element found');
+}
+
+// Function to upload product image (copied from popup.js)
+async function uploadProductImage(imageUrl) {
+    console.log('=== UPLOADING PRODUCT IMAGE ===');
+    console.log('Image URL:', imageUrl);
+    
+    try {
+        // 1. Wait for upload element to be rendered
+        console.log('Waiting for upload element...');
+        await waitForElement('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper', 5000);
+        console.log('Upload element found');
+        
+        // 2. Find the file input
+        console.log('Looking for file input...');
+        const fileInput = await findFileInput();
+        console.log('File input found:', fileInput);
+        
+        // 3. Fetch the image
+        console.log('Fetching image from URL...');
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        console.log('Image blob created, size:', blob.size, 'type:', blob.type);
+        
+        // 4. Create File object
+        const file = new File([blob], 'product-image.jpg', { 
+            type: blob.type || 'image/jpeg',
+            lastModified: Date.now()
+        });
+        console.log('File object created:', file.name, file.size, file.type);
+        
+        // 5. Create FileList and set files
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        console.log('Files set on input, count:', fileInput.files.length);
+        
+        // 6. Trigger events to notify React
+        const events = ['input', 'change', 'blur'];
+        for (const eventType of events) {
+            const event = new Event(eventType, { 
+                bubbles: true, 
+                cancelable: true 
+            });
+            fileInput.dispatchEvent(event);
+            console.log(`Dispatched ${eventType} event`);
+        }
+        
+        // 7. Also try triggering on the upload wrapper
+        const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+        if (uploadWrapper) {
+            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+            uploadWrapper.dispatchEvent(changeEvent);
+            console.log('Dispatched change event on upload wrapper');
+        }
+        
+        console.log('Image upload completed successfully');
+        return true;
+        
+    } catch (error) {
+        console.error('Error uploading product image:', error);
+        return false;
+    }
+}
+
 // Function to extract ASIN from URL
 function extractASIN() {
   try {
@@ -149,14 +401,76 @@ function injectAIReviewButton() {
         const clipboardText = await navigator.clipboard.readText();
         
         if (clipboardText) {
-          // Fill the textarea with clipboard content
-          reviewTextarea.value = clipboardText;
+          // Preformat the clipboard text to remove markdown
+          const formattedText = preformatText(clipboardText);
+          
+          // Fill the textarea with preformatted content
+          reviewTextarea.value = formattedText;
           
           // Trigger input event to ensure any listeners are notified
           reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
           reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
           
           console.log("AI Review Assistant: Text pasted from clipboard to textarea");
+          
+          // Get current rating from chrome.storage.local (shared across extension contexts)
+          console.log("AI Review Assistant: Checking chrome.storage.local for rating...");
+          
+          try {
+            const result = await chrome.storage.local.get(['currentRating', 'starRating', 'selectedKeyword', 'productData']);
+            console.log("AI Review Assistant: chrome.storage.local contents:", result);
+            
+            const currentRating = result.currentRating || result.starRating;
+            const selectedKeyword = result.selectedKeyword;
+            
+            if (currentRating && selectedKeyword) {
+              const rating = parseInt(currentRating, 10);
+              console.log("AI Review Assistant: Setting star rating to:", rating);
+              console.log("AI Review Assistant: Using keyword:", selectedKeyword);
+              
+              // Click the corresponding rating star using the same logic as popup.js
+              const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
+              const ratingStar = document.querySelector(starSelector);
+              if (ratingStar) {
+                ratingStar.click();
+                console.log(`AI Review Assistant: Rating star ${rating} clicked`);
+              } else {
+                console.log(`AI Review Assistant: Rating star ${rating} not found with selector:`, starSelector);
+              }
+              
+              // Generate and fill the review title
+              const reviewTitle = generateTitleFromKeyword(selectedKeyword, rating);
+              console.log("AI Review Assistant: Generated title:", reviewTitle);
+              
+              const reviewTitleField = document.querySelector('input[id="reviewTitle"]');
+              if (reviewTitleField) {
+                reviewTitleField.value = reviewTitle;
+                reviewTitleField.dispatchEvent(new Event('input', { bubbles: true }));
+                reviewTitleField.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log("AI Review Assistant: Review title field filled with:", reviewTitle);
+              } else {
+                console.log("AI Review Assistant: Review title field not found");
+              }
+              
+              // Upload product image if available
+              const productData = result.productData;
+              if (productData && productData.imageUrl) {
+                console.log("AI Review Assistant: Starting image upload...");
+                const uploadSuccess = await uploadProductImage(productData.imageUrl);
+                if (uploadSuccess) {
+                  console.log("AI Review Assistant: Product image uploaded successfully");
+                } else {
+                  console.log("AI Review Assistant: Product image upload failed, but continuing...");
+                }
+              } else {
+                console.log("AI Review Assistant: No product image URL available, skipping upload");
+              }
+            } else {
+              console.log("AI Review Assistant: No rating or keyword found in chrome.storage.local");
+            }
+          } catch (error) {
+            console.error("AI Review Assistant: Error accessing chrome.storage.local:", error);
+          }
         } else {
           alert("No text found in clipboard. Please copy some text first.");
         }
@@ -318,14 +632,76 @@ function injectAIReviewButton() {
           const reviewTextarea = document.querySelector('textarea#reviewText[name="reviewText"]');
           
           if (reviewTextarea) {
-            // Fill the textarea with clipboard content
-            reviewTextarea.value = clipboardText;
+            // Preformat the clipboard text to remove markdown
+            const formattedText = preformatText(clipboardText);
+            
+            // Fill the textarea with preformatted content
+            reviewTextarea.value = formattedText;
             
             // Trigger input event to ensure any listeners are notified
             reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
             reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
             
             console.log("AI Review Assistant: Text pasted from clipboard to textarea");
+            
+            // Get current rating from chrome.storage.local (shared across extension contexts)
+            console.log("AI Review Assistant: Checking chrome.storage.local for rating...");
+            
+            try {
+              const result = await chrome.storage.local.get(['currentRating', 'starRating', 'selectedKeyword', 'productData']);
+              console.log("AI Review Assistant: chrome.storage.local contents:", result);
+              
+              const currentRating = result.currentRating || result.starRating;
+              const selectedKeyword = result.selectedKeyword;
+              
+              if (currentRating && selectedKeyword) {
+                const rating = parseInt(currentRating, 10);
+                console.log("AI Review Assistant: Setting star rating to:", rating);
+                console.log("AI Review Assistant: Using keyword:", selectedKeyword);
+                
+                // Click the corresponding rating star using the same logic as popup.js
+                const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
+                const ratingStar = document.querySelector(starSelector);
+                if (ratingStar) {
+                  ratingStar.click();
+                  console.log(`AI Review Assistant: Rating star ${rating} clicked`);
+                } else {
+                  console.log(`AI Review Assistant: Rating star ${rating} not found with selector:`, starSelector);
+                }
+                
+                // Generate and fill the review title
+                const reviewTitle = generateTitleFromKeyword(selectedKeyword, rating);
+                console.log("AI Review Assistant: Generated title:", reviewTitle);
+                
+                const reviewTitleField = document.querySelector('input[id="reviewTitle"]');
+                if (reviewTitleField) {
+                  reviewTitleField.value = reviewTitle;
+                  reviewTitleField.dispatchEvent(new Event('input', { bubbles: true }));
+                  reviewTitleField.dispatchEvent(new Event('change', { bubbles: true }));
+                  console.log("AI Review Assistant: Review title field filled with:", reviewTitle);
+                } else {
+                  console.log("AI Review Assistant: Review title field not found");
+                }
+                
+                // Upload product image if available
+                const productData = result.productData;
+                if (productData && productData.imageUrl) {
+                  console.log("AI Review Assistant: Starting image upload...");
+                  const uploadSuccess = await uploadProductImage(productData.imageUrl);
+                  if (uploadSuccess) {
+                    console.log("AI Review Assistant: Product image uploaded successfully");
+                  } else {
+                    console.log("AI Review Assistant: Product image upload failed, but continuing...");
+                  }
+                } else {
+                  console.log("AI Review Assistant: No product image URL available, skipping upload");
+                }
+              } else {
+                console.log("AI Review Assistant: No rating or keyword found in chrome.storage.local");
+              }
+            } catch (error) {
+              console.error("AI Review Assistant: Error accessing chrome.storage.local:", error);
+            }
           } else {
             alert("Review textarea not found. Please make sure you're on the review page.");
           }
@@ -422,7 +798,7 @@ async function initialize() {
       
       // Now inject the button
       console.log("AI Review Assistant: Injecting button after page is fully loaded");
-      injectAIReviewButton();
+    injectAIReviewButton();
       
     } catch (error) {
       console.error("AI Review Assistant: Error during initialization:", error);

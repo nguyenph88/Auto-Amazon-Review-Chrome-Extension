@@ -1526,6 +1526,11 @@ function displayProductInfo(productInfo) {
         // Also save to localStorage for persistence
         localStorage.setItem('productData', JSON.stringify(productInfo));
         
+        // Also save to chrome.storage.local for content script access
+        chrome.storage.local.set({
+            productData: productInfo
+        });
+        
         console.log('Product info displayed:', productInfo);
     } else {
         console.error('Invalid product info received:', productInfo);
@@ -1633,10 +1638,18 @@ function loadFromLocalStorage() {
     }
 }
 
-// Function to save star rating to localStorage
+// Function to save star rating to localStorage and chrome.storage.local
 function saveStarRating(rating) {
     localStorage.setItem('starRating', rating.toString());
-    console.log('Star rating saved to localStorage:', rating);
+    localStorage.setItem('currentRating', rating.toString());
+    
+    // Also save to chrome.storage.local for content script access
+    chrome.storage.local.set({
+        starRating: rating.toString(),
+        currentRating: rating.toString()
+    });
+    
+    console.log('Star rating saved to localStorage and chrome.storage.local:', rating);
 }
 
 // Function to show loading state
@@ -1732,9 +1745,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const keyword = getRandomKeyword(currentRating);
             keywordText.textContent = keyword;
             
-            // Save both rating and keyword to localStorage
+            // Save both rating and keyword to localStorage and chrome.storage.local
             saveStarRating(currentRating);
             localStorage.setItem('selectedKeyword', keyword);
+            
+            // Also save to chrome.storage.local for content script access
+            chrome.storage.local.set({
+                currentRating: currentRating,
+                starRating: currentRating,
+                selectedKeyword: keyword
+            });
       }
     });
   
