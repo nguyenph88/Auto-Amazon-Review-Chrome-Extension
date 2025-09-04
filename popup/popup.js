@@ -14,6 +14,9 @@ let productInfoContainer;
 let productTitle;
 let productImage;
 let keywordText;
+let reviewTextarea;
+let pasteBtn;
+let fillBtn;
 
 // WordHero Automation instance
 let wordheroAutomation;
@@ -981,6 +984,13 @@ function loadFromLocalStorage() {
                 console.log('Keyword loaded from localStorage:', savedKeyword);
             }
         }
+        
+        // Load saved review text
+        const savedReviewText = localStorage.getItem('reviewText');
+        if (savedReviewText && reviewTextarea) {
+            reviewTextarea.value = savedReviewText;
+            console.log('Review text loaded from localStorage, length:', savedReviewText.length);
+        }
     } catch (error) {
         console.error('Error loading from localStorage:', error);
     }
@@ -996,7 +1006,7 @@ function saveStarRating(rating) {
 function showLoadingState() {
     productTitle.textContent = "Loading product information...";
     productImage.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZjVmNWY1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+TG9hZGluZy4uLjwvdGV4dD4KPC9zdmc+";
-    productInfoContainer.style.display = 'flex';
+        productInfoContainer.style.display = 'flex';
     }
 
     function showNonReviewPageContent() {
@@ -1060,6 +1070,9 @@ document.addEventListener('DOMContentLoaded', () => {
     productTitle = document.getElementById('product-title');
     productImage = document.getElementById('product-image');
     keywordText = document.getElementById('keyword-text');
+    reviewTextarea = document.getElementById('review-textarea');
+    pasteBtn = document.getElementById('paste-btn');
+    fillBtn = document.getElementById('fill-btn');
   
   
     toggle.addEventListener('change', () => {
@@ -1090,6 +1103,42 @@ document.addEventListener('DOMContentLoaded', () => {
   
     geminiBtn.addEventListener('click', () => handleGeneration('gemini'));
     wordheroBtn.addEventListener('click', () => handleGeneration('wordhero'));
+    
+    // Paste from clipboard button
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text && reviewTextarea) {
+                // Update the textarea
+                reviewTextarea.value = text;
+                
+                // Save to localStorage (overwrite any existing content)
+                localStorage.removeItem('reviewText');
+                localStorage.setItem('reviewText', text);
+                
+                console.log('Text pasted from clipboard and saved to localStorage');
+                console.log('Text length:', text.length);
+            } else {
+                console.log('No text in clipboard or textarea not found');
+            }
+        } catch (error) {
+            console.error('Error reading from clipboard:', error);
+            alert('Could not read from clipboard. Please make sure you have copied some text.');
+        }
+    });
+    
+    // Fill button (placeholder for now)
+    fillBtn.addEventListener('click', () => {
+        console.log('Fill button clicked');
+        // TODO: Implement fill functionality
+    });
+    
+    // Save review text to localStorage whenever user types
+    reviewTextarea.addEventListener('input', () => {
+        const text = reviewTextarea.value;
+        localStorage.setItem('reviewText', text);
+        console.log('Review text saved to localStorage, length:', text.length);
+    });
   
     function updatePopupState(isEnabled) {
       if (!isEnabled) {
