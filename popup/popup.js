@@ -92,12 +92,146 @@ function generateTitleFromKeyword(keyword, rating) {
     return randomTemplate;
 }
 
+// Function to wait for an element to appear
+function waitForElement(selector, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const element = document.querySelector(selector);
+        if (element) {
+            resolve(element);
+            return;
+        }
+
+        const observer = new MutationObserver((mutations, obs) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                obs.disconnect();
+                resolve(element);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+        }, timeout);
+    });
+}
+
+// Function to find file input element
+async function findFileInput() {
+    // Try multiple selectors for file input
+    const selectors = [
+        'input[type="file"]',
+        'input[accept*="image"]',
+        'input[accept*="video"]',
+        'input[accept*="media"]',
+        'input[data-testid*="file"]',
+        'input[data-testid*="upload"]',
+        'input[name*="file"]',
+        'input[name*="upload"]',
+        'input[id*="file"]',
+        'input[id*="upload"]'
+    ];
+
+    for (const selector of selectors) {
+        const input = document.querySelector(selector);
+        if (input) {
+            console.log(`Found file input with selector: ${selector}`);
+            return input;
+        }
+    }
+
+    // If no file input found, try to find it within the upload wrapper
+    const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+    if (uploadWrapper) {
+        const fileInput = uploadWrapper.querySelector('input[type="file"]');
+        if (fileInput) {
+            console.log('Found file input within upload wrapper');
+            return fileInput;
+        }
+    }
+
+    throw new Error('No file input element found');
+}
+
+// Function to upload product image
+async function uploadProductImage(imageUrl) {
+    console.log('=== UPLOADING PRODUCT IMAGE ===');
+    console.log('Image URL:', imageUrl);
+    
+    try {
+        // 1. Wait for upload element to be rendered
+        console.log('Waiting for upload element...');
+        await waitForElement('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper', 5000);
+        console.log('Upload element found');
+        
+        // 2. Find the file input
+        console.log('Looking for file input...');
+        const fileInput = await findFileInput();
+        console.log('File input found:', fileInput);
+        
+        // 3. Fetch the image
+        console.log('Fetching image from URL...');
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        console.log('Image blob created, size:', blob.size, 'type:', blob.type);
+        
+        // 4. Create File object
+        const file = new File([blob], 'product-image.jpg', { 
+            type: blob.type || 'image/jpeg',
+            lastModified: Date.now()
+        });
+        console.log('File object created:', file.name, file.size, file.type);
+        
+        // 5. Create FileList and set files
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        console.log('Files set on input, count:', fileInput.files.length);
+        
+        // 6. Trigger events to notify React
+        const events = ['input', 'change', 'blur'];
+        for (const eventType of events) {
+            const event = new Event(eventType, { 
+                bubbles: true, 
+                cancelable: true 
+            });
+            fileInput.dispatchEvent(event);
+            console.log(`Dispatched ${eventType} event`);
+        }
+        
+        // 7. Also try triggering on the upload wrapper
+        const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+        if (uploadWrapper) {
+            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+            uploadWrapper.dispatchEvent(changeEvent);
+            console.log('Dispatched change event on upload wrapper');
+        }
+        
+        console.log('Image upload completed successfully');
+        return true;
+        
+    } catch (error) {
+        console.error('Error uploading product image:', error);
+        return false;
+    }
+}
+
 // Function to fill the review form on Amazon page
-function fillReviewForm(reviewText, reviewTitle, rating) {
+async function fillReviewForm(reviewText, reviewTitle, rating, productImageUrl) {
     console.log('=== FILLING REVIEW FORM ===');
     console.log('Review text length:', reviewText.length);
     console.log('Review title:', reviewTitle);
     console.log('Rating:', rating);
+    console.log('Product image URL:', productImageUrl);
     
     try {
         // 1. Fill the review text field
@@ -130,6 +264,19 @@ function fillReviewForm(reviewText, reviewTitle, rating) {
             console.log(`Rating star ${rating} clicked`);
         } else {
             console.log(`Rating star ${rating} not found with selector:`, starSelector);
+        }
+        
+        // 4. Upload product image if URL is provided
+        if (productImageUrl) {
+            console.log('Starting image upload...');
+            const uploadSuccess = await uploadProductImage(productImageUrl);
+            if (uploadSuccess) {
+                console.log('Product image uploaded successfully');
+            } else {
+                console.log('Product image upload failed, but continuing...');
+            }
+        } else {
+            console.log('No product image URL provided, skipping upload');
         }
         
         console.log('Review form filling completed');
@@ -1273,21 +1420,218 @@ document.addEventListener('DOMContentLoaded', () => {
             // Generate meaningful title from keyword
             const reviewTitle = generateTitleFromKeyword(keyword, currentRating);
             
+            // Get product image URL from localStorage
+            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+            const productImageUrl = productData.imageUrl || null;
+            
             console.log('Filling review form with:', {
                 reviewText: reviewText.substring(0, 50) + '...',
                 keyword: keyword,
                 rating: currentRating,
-                reviewTitle: reviewTitle
+                reviewTitle: reviewTitle,
+                productImageUrl: productImageUrl
             });
             
             // Get the current active tab
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
-            // Inject script to fill the form
+            // Inject script to fill the form with all necessary functions
             await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
-                func: fillReviewForm,
-                args: [reviewText, reviewTitle, currentRating]
+                func: async (reviewText, reviewTitle, rating, productImageUrl) => {
+                    // Function to wait for an element to appear
+                    function waitForElement(selector, timeout = 10000) {
+                        return new Promise((resolve, reject) => {
+                            const element = document.querySelector(selector);
+                            if (element) {
+                                resolve(element);
+                                return;
+                            }
+
+                            const observer = new MutationObserver((mutations, obs) => {
+                                const element = document.querySelector(selector);
+                                if (element) {
+                                    obs.disconnect();
+                                    resolve(element);
+                                }
+                            });
+
+                            observer.observe(document.body, {
+                                childList: true,
+                                subtree: true
+                            });
+
+                            setTimeout(() => {
+                                observer.disconnect();
+                                reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+                            }, timeout);
+                        });
+                    }
+
+                    // Function to find file input element
+                    async function findFileInput() {
+                        // Try multiple selectors for file input
+                        const selectors = [
+                            'input[type="file"]',
+                            'input[accept*="image"]',
+                            'input[accept*="video"]',
+                            'input[accept*="media"]',
+                            'input[data-testid*="file"]',
+                            'input[data-testid*="upload"]',
+                            'input[name*="file"]',
+                            'input[name*="upload"]',
+                            'input[id*="file"]',
+                            'input[id*="upload"]'
+                        ];
+
+                        for (const selector of selectors) {
+                            const input = document.querySelector(selector);
+                            if (input) {
+                                console.log(`Found file input with selector: ${selector}`);
+                                return input;
+                            }
+                        }
+
+                        // If no file input found, try to find it within the upload wrapper
+                        const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+                        if (uploadWrapper) {
+                            const fileInput = uploadWrapper.querySelector('input[type="file"]');
+                            if (fileInput) {
+                                console.log('Found file input within upload wrapper');
+                                return fileInput;
+                            }
+                        }
+
+                        throw new Error('No file input element found');
+                    }
+
+                    // Function to upload product image
+                    async function uploadProductImage(imageUrl) {
+                        console.log('=== UPLOADING PRODUCT IMAGE ===');
+                        console.log('Image URL:', imageUrl);
+                        
+                        try {
+                            // 1. Wait for upload element to be rendered
+                            console.log('Waiting for upload element...');
+                            await waitForElement('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper', 5000);
+                            console.log('Upload element found');
+                            
+                            // 2. Find the file input
+                            console.log('Looking for file input...');
+                            const fileInput = await findFileInput();
+                            console.log('File input found:', fileInput);
+                            
+                            // 3. Fetch the image
+                            console.log('Fetching image from URL...');
+                            const response = await fetch(imageUrl);
+                            if (!response.ok) {
+                                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                            }
+                            
+                            const blob = await response.blob();
+                            console.log('Image blob created, size:', blob.size, 'type:', blob.type);
+                            
+                            // 4. Create File object
+                            const file = new File([blob], 'product-image.jpg', { 
+                                type: blob.type || 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            console.log('File object created:', file.name, file.size, file.type);
+                            
+                            // 5. Create FileList and set files
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            fileInput.files = dataTransfer.files;
+                            console.log('Files set on input, count:', fileInput.files.length);
+                            
+                            // 6. Trigger events to notify React
+                            const events = ['input', 'change', 'blur'];
+                            for (const eventType of events) {
+                                const event = new Event(eventType, { 
+                                    bubbles: true, 
+                                    cancelable: true 
+                                });
+                                fileInput.dispatchEvent(event);
+                                console.log(`Dispatched ${eventType} event`);
+                            }
+                            
+                            // 7. Also try triggering on the upload wrapper
+                            const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+                            if (uploadWrapper) {
+                                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                uploadWrapper.dispatchEvent(changeEvent);
+                                console.log('Dispatched change event on upload wrapper');
+                            }
+                            
+                            console.log('Image upload completed successfully');
+                            return true;
+                            
+                        } catch (error) {
+                            console.error('Error uploading product image:', error);
+                            return false;
+                        }
+                    }
+
+                    // Main fill review form function
+                    console.log('=== FILLING REVIEW FORM ===');
+                    console.log('Review text length:', reviewText.length);
+                    console.log('Review title:', reviewTitle);
+                    console.log('Rating:', rating);
+                    console.log('Product image URL:', productImageUrl);
+                    
+                    try {
+                        // 1. Fill the review text field
+                        const reviewTextarea = document.querySelector('textarea[id="reviewText"]');
+                        if (reviewTextarea) {
+                            reviewTextarea.value = reviewText;
+                            reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+                            reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+                            console.log('Review text field filled');
+                        } else {
+                            console.log('Review text field not found');
+                        }
+                        
+                        // 2. Fill the review title field with generated title
+                        const reviewTitleField = document.querySelector('input[id="reviewTitle"]');
+                        if (reviewTitleField) {
+                            reviewTitleField.value = reviewTitle;
+                            reviewTitleField.dispatchEvent(new Event('input', { bubbles: true }));
+                            reviewTitleField.dispatchEvent(new Event('change', { bubbles: true }));
+                            console.log('Review title field filled with title:', reviewTitle);
+                        } else {
+                            console.log('Review title field not found');
+                        }
+                        
+                        // 3. Click the corresponding rating star
+                        const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
+                        const ratingStar = document.querySelector(starSelector);
+                        if (ratingStar) {
+                            ratingStar.click();
+                            console.log(`Rating star ${rating} clicked`);
+                        } else {
+                            console.log(`Rating star ${rating} not found with selector:`, starSelector);
+                        }
+                        
+                        // 4. Upload product image if URL is provided
+                        if (productImageUrl) {
+                            console.log('Starting image upload...');
+                            const uploadSuccess = await uploadProductImage(productImageUrl);
+                            if (uploadSuccess) {
+                                console.log('Product image uploaded successfully');
+                            } else {
+                                console.log('Product image upload failed, but continuing...');
+                            }
+                        } else {
+                            console.log('No product image URL provided, skipping upload');
+                        }
+                        
+                        console.log('Review form filling completed');
+                        
+                    } catch (error) {
+                        console.error('Error filling review form:', error);
+                    }
+                },
+                args: [reviewText, reviewTitle, currentRating, productImageUrl]
             });
             
             console.log('Review form filled successfully');
