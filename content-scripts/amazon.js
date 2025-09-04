@@ -50,6 +50,7 @@ function injectAIReviewButton() {
     button.innerHTML = '🤖 Generate AI Review';
     button.id = 'ai-review-button';
     button.className = 'ai-review-btn';
+    button.type = 'button'; // Ensure it's not a submit button
     button.style.cssText = `
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -78,8 +79,12 @@ function injectAIReviewButton() {
     });
 
     // Add click handler
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
       console.log("AI Review Assistant: Generate AI Review button clicked");
+      
+      // Prevent form submission and default behavior
+      event.preventDefault();
+      event.stopPropagation();
       
       // Extract ASIN from URL
       const asin = extractASIN();
@@ -90,6 +95,8 @@ function injectAIReviewButton() {
         chrome.runtime.sendMessage({
           action: 'openPopupAndLoadProduct',
           asin: asin
+        }).catch(error => {
+          console.error("AI Review Assistant: Error sending message:", error);
         });
       } else {
         alert("Could not extract product ASIN from URL");
@@ -140,6 +147,7 @@ function injectAIReviewButton() {
     button.innerHTML = '🤖 Generate AI Review';
     button.id = 'ai-review-button';
     button.className = 'ai-review-btn';
+    button.type = 'button'; // Ensure it's not a submit button
     button.style.cssText = `
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -167,8 +175,12 @@ function injectAIReviewButton() {
     });
 
           // Add click handler
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (event) => {
         console.log("AI Review Assistant: Generate AI Review button clicked");
+        
+        // Prevent form submission and default behavior
+        event.preventDefault();
+        event.stopPropagation();
         
         // Extract ASIN from URL
         const asin = extractASIN();
@@ -179,6 +191,8 @@ function injectAIReviewButton() {
           chrome.runtime.sendMessage({
             action: 'openPopupAndLoadProduct',
             asin: asin
+          }).catch(error => {
+            console.error("AI Review Assistant: Error sending message:", error);
           });
         } else {
           alert("Could not extract product ASIN from URL");
@@ -193,17 +207,89 @@ function injectAIReviewButton() {
   }
 }
 
+// Function to wait for page to be completely loaded
+function waitForPageLoad() {
+  return new Promise((resolve) => {
+    // Check if page is already loaded
+    if (document.readyState === 'complete') {
+      console.log("AI Review Assistant: Page already loaded");
+      resolve();
+      return;
+    }
+    
+    // Wait for load event
+    window.addEventListener('load', () => {
+      console.log("AI Review Assistant: Page load event fired");
+      resolve();
+    });
+    
+    // Fallback timeout after 10 seconds
+    setTimeout(() => {
+      console.log("AI Review Assistant: Page load timeout reached");
+      resolve();
+    }, 10000);
+  });
+}
+
+// Function to wait for specific elements to be present
+function waitForElements() {
+  return new Promise((resolve) => {
+    const checkElements = () => {
+      const reviewTextarea = document.querySelector('textarea#reviewText[name="reviewText"]');
+      const reviewForm = document.querySelector('#ryp-review-your-purchases-form');
+      const ratingCard = document.querySelector('div[data-hook="ryp-star-rating-card"]');
+      
+      if (reviewTextarea || reviewForm || ratingCard) {
+        console.log("AI Review Assistant: Target elements found");
+        resolve();
+        return;
+      }
+      
+      // Check again after a short delay
+      setTimeout(checkElements, 500);
+    };
+    
+    checkElements();
+    
+    // Fallback timeout after 15 seconds
+    setTimeout(() => {
+      console.log("AI Review Assistant: Element wait timeout reached");
+      resolve();
+    }, 15000);
+  });
+}
+
 // Main initialization function
-function initialize() {
+async function initialize() {
   if (isReviewPage()) {
     console.log("AI Review Assistant: Review page detected, initializing...");
     
-    // Try to inject the button immediately
-    injectAIReviewButton();
+    try {
+      // Wait for page to be completely loaded
+      console.log("AI Review Assistant: Waiting for page to load...");
+      await waitForPageLoad();
+      
+      // Wait for specific elements to be present
+      console.log("AI Review Assistant: Waiting for target elements...");
+      await waitForElements();
+      
+      // Wait an additional second for any final rendering
+      console.log("AI Review Assistant: Waiting additional 1 second for final rendering...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Now inject the button
+      console.log("AI Review Assistant: Injecting button after page is fully loaded");
+      injectAIReviewButton();
+      
+    } catch (error) {
+      console.error("AI Review Assistant: Error during initialization:", error);
+      // Fallback: try to inject anyway
+      injectAIReviewButton();
+    }
     
     // Also try after delays in case the page loads dynamically
-    setTimeout(injectAIReviewButton, 1000);
-    setTimeout(injectAIReviewButton, 3000);
+    setTimeout(injectAIReviewButton, 2000);
+    setTimeout(injectAIReviewButton, 5000);
     
     // Listen for dynamic content changes
     const observer = new MutationObserver((mutations) => {
