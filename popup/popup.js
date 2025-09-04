@@ -21,6 +21,53 @@ let fillBtn;
 // WordHero Automation instance
 let wordheroAutomation;
 
+// Function to fill the review form on Amazon page
+function fillReviewForm(reviewText, keyword, rating) {
+    console.log('=== FILLING REVIEW FORM ===');
+    console.log('Review text length:', reviewText.length);
+    console.log('Keyword:', keyword);
+    console.log('Rating:', rating);
+    
+    try {
+        // 1. Fill the review text field
+        const reviewTextarea = document.querySelector('textarea[id="reviewText"]');
+        if (reviewTextarea) {
+            reviewTextarea.value = reviewText;
+            reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+            reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('Review text field filled');
+        } else {
+            console.log('Review text field not found');
+        }
+        
+        // 2. Fill the review title field with keyword
+        const reviewTitle = document.querySelector('input[id="reviewTitle"]');
+        if (reviewTitle) {
+            reviewTitle.value = keyword;
+            reviewTitle.dispatchEvent(new Event('input', { bubbles: true }));
+            reviewTitle.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('Review title field filled with keyword:', keyword);
+        } else {
+            console.log('Review title field not found');
+        }
+        
+        // 3. Click the corresponding rating star
+        const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
+        const ratingStar = document.querySelector(starSelector);
+        if (ratingStar) {
+            ratingStar.click();
+            console.log(`Rating star ${rating} clicked`);
+        } else {
+            console.log(`Rating star ${rating} not found with selector:`, starSelector);
+        }
+        
+        console.log('Review form filling completed');
+        
+    } catch (error) {
+        console.error('Error filling review form:', error);
+    }
+}
+
 // WordHero Automation Class
 class WordHeroAutomation {
     constructor() {
@@ -1127,10 +1174,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Fill button (placeholder for now)
-    fillBtn.addEventListener('click', () => {
-        console.log('Fill button clicked');
-        // TODO: Implement fill functionality
+    // Fill button - Fill the review form on Amazon page
+    fillBtn.addEventListener('click', async () => {
+        try {
+            console.log('Fill button clicked');
+            
+            // Get the review text from textarea
+            const reviewText = reviewTextarea.value.trim();
+            if (!reviewText) {
+                alert('Please enter some review text first.');
+                return;
+            }
+            
+            // Get the selected keyword
+            const keyword = keywordText.textContent;
+            if (!keyword || keyword === 'Click a star to see keywords') {
+                alert('Please select a star rating first to get a keyword.');
+                return;
+            }
+            
+            // Get the current rating
+            if (currentRating === 0) {
+                alert('Please select a star rating first.');
+                return;
+            }
+            
+            console.log('Filling review form with:', {
+                reviewText: reviewText.substring(0, 50) + '...',
+                keyword: keyword,
+                rating: currentRating
+            });
+            
+            // Get the current active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            // Inject script to fill the form
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: fillReviewForm,
+                args: [reviewText, keyword, currentRating]
+            });
+            
+            console.log('Review form filled successfully');
+            
+        } catch (error) {
+            console.error('Error filling review form:', error);
+            alert('Error filling review form. Please make sure you are on an Amazon review page.');
+        }
     });
     
     // Save review text to localStorage whenever user types
