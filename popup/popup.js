@@ -17,6 +17,7 @@ let keywordText;
 let reviewTextarea;
 let pasteBtn;
 let fillBtn;
+let wordCountInput;
 
 // Automation instances
 let wordheroAutomation;
@@ -373,7 +374,9 @@ class GeminiAutomation {
     }
 
     createGeminiPrompt(productTitle, keyword) {
-        return `Write a meaningful Amazon product review for "${productTitle}", less than 300 words. The review should be ${keyword.toLowerCase()}. Include specific details about the product, your experience using it, pros and cons, and whether you would recommend it to others. Make it sound authentic and helpful to other customers. Do not use CANVAS, without CANVAS, use original response, do not use emoji.`;
+        // Get word count from localStorage, default to 300 if not set
+        const wordCount = localStorage.getItem('wordCount') || '300';
+        return `Write a meaningful Amazon product review for "${productTitle}", less than ${wordCount} words. The review should be ${keyword.toLowerCase()}. Include specific details about the product, your experience using it, pros and cons, and whether you would recommend it to others. Make it sound authentic and helpful to other customers. Do not use CANVAS, without CANVAS, use original response, do not use emoji.`;
     }
 
     async fillGeminiInput(tabId, prompt) {
@@ -1633,6 +1636,13 @@ function loadFromLocalStorage() {
             reviewTextarea.value = savedReviewText;
             console.log('Review text loaded from localStorage, length:', savedReviewText.length);
         }
+        
+        // Load saved word count
+        const savedWordCount = localStorage.getItem('wordCount');
+        if (savedWordCount && wordCountInput) {
+            wordCountInput.value = savedWordCount;
+            console.log('Word count loaded from localStorage:', savedWordCount);
+        }
     } catch (error) {
         console.error('Error loading from localStorage:', error);
     }
@@ -1650,6 +1660,12 @@ function saveStarRating(rating) {
     });
     
     console.log('Star rating saved to localStorage and chrome.storage.local:', rating);
+}
+
+// Function to save word count to localStorage
+function saveWordCount(wordCount) {
+    localStorage.setItem('wordCount', wordCount.toString());
+    console.log('Word count saved to localStorage:', wordCount);
 }
 
 // Function to show loading state
@@ -1723,6 +1739,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reviewTextarea = document.getElementById('review-textarea');
     pasteBtn = document.getElementById('paste-btn');
     fillBtn = document.getElementById('fill-btn');
+    wordCountInput = document.getElementById('word-count');
   
   
     toggle.addEventListener('change', () => {
@@ -2039,6 +2056,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = reviewTextarea.value;
         localStorage.setItem('reviewText', text);
         console.log('Review text saved to localStorage, length:', text.length);
+    });
+    
+    // Save word count to localStorage whenever user changes it
+    wordCountInput.addEventListener('input', () => {
+        const wordCount = wordCountInput.value;
+        if (wordCount && wordCount >= 50 && wordCount <= 1000) {
+            saveWordCount(wordCount);
+        }
+    });
+    
+    wordCountInput.addEventListener('blur', () => {
+        const wordCount = wordCountInput.value;
+        if (wordCount && wordCount >= 50 && wordCount <= 1000) {
+            saveWordCount(wordCount);
+        }
     });
   
     function updatePopupState(isEnabled) {
