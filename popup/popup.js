@@ -2105,31 +2105,86 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleGeminiGeneration() {
       try {
         // Check if we have product data and keyword
-        const productData = localStorage.getItem('productData');
+        const productDataString = localStorage.getItem('productData');
         const keyword = localStorage.getItem('selectedKeyword');
         
-        if (!productData || !keyword) {
+        if (!productDataString || !keyword) {
           alert("Please load product information and select a star rating first.");
           return;
         }
         
+        const productData = JSON.parse(productDataString);
+        
+        if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
+          alert("Please configure your Gemini API Key in env.js");
+          return;
+        }
+        
         // Show loading message
-        geminiBtn.textContent = 'Opening Gemini...';
+        geminiBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Generating...</span>';
         geminiBtn.disabled = true;
         
-        // Open Gemini and start automation
-        await geminiAutomation.openGemini();
+        const wordCount = document.getElementById('word-count') ? document.getElementById('word-count').value : '300';
+        const prompt = `Write a short and concise Amazon product review for "${productData.title}", less than ${wordCount} words. The review should be ${keyword.toLowerCase()}. Include specific details about the product, your experience using it, pros and cons, and whether you would recommend it to others. Make it sound authentic and helpful to other customers. Do not use emoji.`;
+        
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${GEMINI_API_KEY.trim()}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+            }
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error && errorJson.error.message) {
+              errorMessage += ` - ${errorJson.error.message}`;
+            } else {
+              errorMessage += ` - ${errorText}`;
+            }
+          } catch (e) {
+            errorMessage += ` - ${errorText}`;
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        const generatedText = data.candidates[0].content.parts[0].text;
+        
+        // Put the result in the textarea
+        const reviewTextarea = document.getElementById('review-textarea');
+        if (reviewTextarea) {
+          reviewTextarea.value = generatedText;
+          reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+          reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Copy to clipboard for easy pasting via "Fill" button later
+        navigator.clipboard.writeText(generatedText).catch(e => console.log('Failed to copy to clipboard', e));
         
         // Reset button
-        geminiBtn.textContent = 'Generate with Gemini';
+        geminiBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Gemini</span>';
         geminiBtn.disabled = false;
         
       } catch (error) {
         console.error('Error in Gemini generation:', error);
-        alert('Error opening Gemini: ' + error.message);
+        alert('Error generating review: ' + error.message);
         
         // Reset button
-        geminiBtn.textContent = 'Generate with Gemini';
+        geminiBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Gemini</span>';
         geminiBtn.disabled = false;
       }
     }
