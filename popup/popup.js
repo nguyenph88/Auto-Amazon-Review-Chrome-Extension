@@ -18,9 +18,9 @@ let reviewTextarea;
 let pasteBtn;
 let fillBtn;
 let wordCountInput;
+let autoFillCheckbox;
 
 // Automation instances
-let wordheroAutomation;
 let geminiAutomation;
 
 // Function to generate meaningful title from keyword
@@ -1643,6 +1643,12 @@ function loadFromLocalStorage() {
             wordCountInput.value = savedWordCount;
             console.log('Word count loaded from localStorage:', savedWordCount);
         }
+        
+        // Load saved auto-fill state (default to checked)
+        const savedAutoFill = localStorage.getItem('autoFill');
+        if (autoFillCheckbox) {
+            autoFillCheckbox.checked = savedAutoFill !== null ? savedAutoFill === 'true' : true;
+        }
     } catch (error) {
         console.error('Error loading from localStorage:', error);
     }
@@ -1740,6 +1746,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pasteBtn = document.getElementById('paste-btn');
     fillBtn = document.getElementById('fill-btn');
     wordCountInput = document.getElementById('word-count');
+    autoFillCheckbox = document.getElementById('auto-fill-checkbox');
   
   
     toggle.addEventListener('change', () => {
@@ -1801,250 +1808,105 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Extract fill form logic into reusable function
+    async function autoFillReviewForm() {
+        const reviewText = reviewTextarea.value.trim();
+        if (!reviewText) {
+            return;
+        }
+        
+        const keyword = keywordText.textContent;
+        if (!keyword || keyword === 'Click a star to see keywords') {
+            return;
+        }
+        
+        if (currentRating === 0) {
+            return;
+        }
+        
+        const reviewTitle = generateTitleFromKeyword(keyword, currentRating);
+        
+        const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+        const productImageUrl = productData.imageUrl || null;
+        
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: async (reviewText, reviewTitle, rating, productImageUrl) => {
+                function waitForElement(selector, timeout = 10000) {
+                    return new Promise((resolve, reject) => {
+                        const element = document.querySelector(selector);
+                        if (element) { resolve(element); return; }
+                        const observer = new MutationObserver((mutations, obs) => {
+                            const element = document.querySelector(selector);
+                            if (element) { obs.disconnect(); resolve(element); }
+                        });
+                        observer.observe(document.body, { childList: true, subtree: true });
+                        setTimeout(() => { observer.disconnect(); reject(new Error(`Element ${selector} not found within ${timeout}ms`)); }, timeout);
+                    });
+                }
+                
+                async function findFileInput() {
+                    const selectors = [
+                        'input[type="file"]', 'input[accept*="image"]', 'input[accept*="video"]',
+                        'input[accept*="media"]', 'input[data-testid*="file"]', 'input[data-testid*="upload"]',
+                        'input[name*="file"]', 'input[name*="upload"]', 'input[id*="file"]', 'input[id*="upload"]'
+                    ];
+                    for (const selector of selectors) {
+                        const input = document.querySelector(selector);
+                        if (input) return input;
+                    }
+                    const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+                    if (uploadWrapper) {
+                        const fileInput = uploadWrapper.querySelector('input[type="file"]');
+                        if (fileInput) return fileInput;
+                    }
+                    throw new Error('No file input element found');
+                }
+                
+                async function uploadProductImage(imageUrl) {
+                    try {
+                        await waitForElement('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper', 5000);
+                        const fileInput = await findFileInput();
+                        const response = await fetch(imageUrl);
+                        if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+                        const blob = await response.blob();
+                        const file = new File([blob], 'product-image.jpg', { type: blob.type || 'image/jpeg', lastModified: Date.now() });
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        fileInput.files = dataTransfer.files;
+                        ['input', 'change', 'blur'].forEach(type => fileInput.dispatchEvent(new Event(type, { bubbles: true, cancelable: true })));
+                        const wrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
+                        if (wrapper) wrapper.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        return true;
+                    } catch (error) { console.error('Error uploading product image:', error); return false; }
+                }
+                
+                const textarea = document.querySelector('textarea[id="reviewText"]');
+                if (textarea) { textarea.value = reviewText; textarea.dispatchEvent(new Event('input', { bubbles: true })); textarea.dispatchEvent(new Event('change', { bubbles: true })); }
+                const titleField = document.querySelector('input[id="reviewTitle"]');
+                if (titleField) { titleField.value = reviewTitle; titleField.dispatchEvent(new Event('input', { bubbles: true })); titleField.dispatchEvent(new Event('change', { bubbles: true })); }
+                const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
+                const ratingStar = document.querySelector(starSelector);
+                if (ratingStar) ratingStar.click();
+                if (productImageUrl) await uploadProductImage(productImageUrl);
+            },
+            args: [reviewText, reviewTitle, currentRating, productImageUrl]
+        });
+    }
+
     // Fill button - Fill the review form on Amazon page
     fillBtn.addEventListener('click', async () => {
         try {
-            console.log('Fill button clicked');
-            
-            // Get the review text from textarea
             const reviewText = reviewTextarea.value.trim();
-            if (!reviewText) {
-                alert('Please enter some review text first.');
-                return;
-            }
-            
-            // Get the selected keyword
+            if (!reviewText) { alert('Please enter some review text first.'); return; }
             const keyword = keywordText.textContent;
-            if (!keyword || keyword === 'Click a star to see keywords') {
-                alert('Please select a star rating first to get a keyword.');
-                return;
-            }
+            if (!keyword || keyword === 'Click a star to see keywords') { alert('Please select a star rating first to get a keyword.'); return; }
+            if (currentRating === 0) { alert('Please select a star rating first.'); return; }
             
-            // Get the current rating
-            if (currentRating === 0) {
-                alert('Please select a star rating first.');
-                return;
-            }
-            
-            // Generate meaningful title from keyword
-            const reviewTitle = generateTitleFromKeyword(keyword, currentRating);
-            
-            // Get product image URL from localStorage
-            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-            const productImageUrl = productData.imageUrl || null;
-            
-            console.log('Filling review form with:', {
-                reviewText: reviewText.substring(0, 50) + '...',
-                keyword: keyword,
-                rating: currentRating,
-                reviewTitle: reviewTitle,
-                productImageUrl: productImageUrl
-            });
-            
-            // Get the current active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Inject script to fill the form with all necessary functions
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: async (reviewText, reviewTitle, rating, productImageUrl) => {
-                    // Function to wait for an element to appear
-                    function waitForElement(selector, timeout = 10000) {
-                        return new Promise((resolve, reject) => {
-                            const element = document.querySelector(selector);
-                            if (element) {
-                                resolve(element);
-                                return;
-                            }
-
-                            const observer = new MutationObserver((mutations, obs) => {
-                                const element = document.querySelector(selector);
-                                if (element) {
-                                    obs.disconnect();
-                                    resolve(element);
-                                }
-                            });
-
-                            observer.observe(document.body, {
-                                childList: true,
-                                subtree: true
-                            });
-
-                            setTimeout(() => {
-                                observer.disconnect();
-                                reject(new Error(`Element ${selector} not found within ${timeout}ms`));
-                            }, timeout);
-                        });
-                    }
-
-                    // Function to find file input element
-                    async function findFileInput() {
-                        // Try multiple selectors for file input
-                        const selectors = [
-                            'input[type="file"]',
-                            'input[accept*="image"]',
-                            'input[accept*="video"]',
-                            'input[accept*="media"]',
-                            'input[data-testid*="file"]',
-                            'input[data-testid*="upload"]',
-                            'input[name*="file"]',
-                            'input[name*="upload"]',
-                            'input[id*="file"]',
-                            'input[id*="upload"]'
-                        ];
-
-                        for (const selector of selectors) {
-                            const input = document.querySelector(selector);
-                            if (input) {
-                                console.log(`Found file input with selector: ${selector}`);
-                                return input;
-                            }
-                        }
-
-                        // If no file input found, try to find it within the upload wrapper
-                        const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
-                        if (uploadWrapper) {
-                            const fileInput = uploadWrapper.querySelector('input[type="file"]');
-                            if (fileInput) {
-                                console.log('Found file input within upload wrapper');
-                                return fileInput;
-                            }
-                        }
-
-                        throw new Error('No file input element found');
-                    }
-
-                    // Function to upload product image
-                    async function uploadProductImage(imageUrl) {
-                        console.log('=== UPLOADING PRODUCT IMAGE ===');
-                        console.log('Image URL:', imageUrl);
-                        
-                        try {
-                            // 1. Wait for upload element to be rendered
-                            console.log('Waiting for upload element...');
-                            await waitForElement('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper', 5000);
-                            console.log('Upload element found');
-                            
-                            // 2. Find the file input
-                            console.log('Looking for file input...');
-                            const fileInput = await findFileInput();
-                            console.log('File input found:', fileInput);
-                            
-                            // 3. Fetch the image
-                            console.log('Fetching image from URL...');
-                            const response = await fetch(imageUrl);
-                            if (!response.ok) {
-                                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-                            }
-                            
-                            const blob = await response.blob();
-                            console.log('Image blob created, size:', blob.size, 'type:', blob.type);
-                            
-                            // 4. Create File object
-                            const file = new File([blob], 'product-image.jpg', { 
-                                type: blob.type || 'image/jpeg',
-                                lastModified: Date.now()
-                            });
-                            console.log('File object created:', file.name, file.size, file.type);
-                            
-                            // 5. Create FileList and set files
-                            const dataTransfer = new DataTransfer();
-                            dataTransfer.items.add(file);
-                            fileInput.files = dataTransfer.files;
-                            console.log('Files set on input, count:', fileInput.files.length);
-                            
-                            // 6. Trigger events to notify React
-                            const events = ['input', 'change', 'blur'];
-                            for (const eventType of events) {
-                                const event = new Event(eventType, { 
-                                    bubbles: true, 
-                                    cancelable: true 
-                                });
-                                fileInput.dispatchEvent(event);
-                                console.log(`Dispatched ${eventType} event`);
-                            }
-                            
-                            // 7. Also try triggering on the upload wrapper
-                            const uploadWrapper = document.querySelector('.in-context-ryp__form-field--mediaUploadInput--custom-wrapper');
-                            if (uploadWrapper) {
-                                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                uploadWrapper.dispatchEvent(changeEvent);
-                                console.log('Dispatched change event on upload wrapper');
-                            }
-                            
-                            console.log('Image upload completed successfully');
-                            return true;
-                            
-                        } catch (error) {
-                            console.error('Error uploading product image:', error);
-                            return false;
-                        }
-                    }
-
-                    // Main fill review form function
-                    console.log('=== FILLING REVIEW FORM ===');
-                    console.log('Review text length:', reviewText.length);
-                    console.log('Review title:', reviewTitle);
-                    console.log('Rating:', rating);
-                    console.log('Product image URL:', productImageUrl);
-                    
-                    try {
-                        // 1. Fill the review text field
-                        const reviewTextarea = document.querySelector('textarea[id="reviewText"]');
-                        if (reviewTextarea) {
-                            reviewTextarea.value = reviewText;
-                            reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
-                            console.log('Review text field filled');
-                        } else {
-                            console.log('Review text field not found');
-                        }
-                        
-                        // 2. Fill the review title field with generated title
-                        const reviewTitleField = document.querySelector('input[id="reviewTitle"]');
-                        if (reviewTitleField) {
-                            reviewTitleField.value = reviewTitle;
-                            reviewTitleField.dispatchEvent(new Event('input', { bubbles: true }));
-                            reviewTitleField.dispatchEvent(new Event('change', { bubbles: true }));
-                            console.log('Review title field filled with title:', reviewTitle);
-                        } else {
-                            console.log('Review title field not found');
-                        }
-                        
-                        // 3. Click the corresponding rating star
-                        const starSelector = `#in-context-ryp-form > div.a-section.in-context-ryp__form_fields_container-desktop > div:nth-child(1) > div > div > span:nth-child(${rating})`;
-                        const ratingStar = document.querySelector(starSelector);
-                        if (ratingStar) {
-                            ratingStar.click();
-                            console.log(`Rating star ${rating} clicked`);
-                        } else {
-                            console.log(`Rating star ${rating} not found with selector:`, starSelector);
-                        }
-                        
-                        // 4. Upload product image if URL is provided
-                        if (productImageUrl) {
-                            console.log('Starting image upload...');
-                            const uploadSuccess = await uploadProductImage(productImageUrl);
-                            if (uploadSuccess) {
-                                console.log('Product image uploaded successfully');
-                            } else {
-                                console.log('Product image upload failed, but continuing...');
-                            }
-                        } else {
-                            console.log('No product image URL provided, skipping upload');
-                        }
-                        
-                        console.log('Review form filling completed');
-                        
-                    } catch (error) {
-                        console.error('Error filling review form:', error);
-                    }
-                },
-                args: [reviewText, reviewTitle, currentRating, productImageUrl]
-            });
-            
+            await autoFillReviewForm();
             console.log('Review form filled successfully');
-            
         } catch (error) {
             console.error('Error filling review form:', error);
             alert('Error filling review form. Please make sure you are on an Amazon review page.');
@@ -2072,6 +1934,11 @@ document.addEventListener('DOMContentLoaded', () => {
             saveWordCount(wordCount);
         }
     });
+    
+    // Save auto-fill checkbox state
+    autoFillCheckbox.addEventListener('change', () => {
+        localStorage.setItem('autoFill', autoFillCheckbox.checked);
+    });
   
     function updatePopupState(isEnabled) {
       if (!isEnabled) {
@@ -2093,14 +1960,100 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       if (service === 'wordhero') {
-        // Handle WordHero automation
-        handleWordHeroGeneration();
+        handleDeepSeekGeneration();
       } else if (service === 'gemini') {
-        // Handle Gemini automation
         handleGeminiGeneration();
       }
     }
 
+    // Handle DeepSeek generation
+    async function handleDeepSeekGeneration() {
+      try {
+        const productDataString = localStorage.getItem('productData');
+        const keyword = localStorage.getItem('selectedKeyword');
+        
+        if (!productDataString || !keyword) {
+          alert("Please load product information and select a star rating first.");
+          return;
+        }
+        
+        const productData = JSON.parse(productDataString);
+        
+        if (typeof DEEPSEEK_API_KEY === 'undefined' || !DEEPSEEK_API_KEY) {
+          alert("Please configure your DeepSeek API Key in env.js");
+          return;
+        }
+        
+        const btn = document.getElementById('wordhero-btn');
+        btn.innerHTML = '<span class="btn-icon">⚡</span><span class="btn-text">Generating...</span>';
+        btn.disabled = true;
+        
+        const wordCount = document.getElementById('word-count') ? document.getElementById('word-count').value : '300';
+        const prompt = `Write a short and concise Amazon product review for "${productData.title}", less than ${wordCount} words. The review should be ${keyword.toLowerCase()}. Include specific details about the product, your experience using it, pros and cons, and whether you would recommend it to others. Make it sound authentic and helpful to other customers. Do not use emoji.`;
+        
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${DEEPSEEK_API_KEY.trim()}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-v4-flash',
+            messages: [
+              { role: 'system', content: 'You are a helpful assistant that writes Amazon product reviews.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2048
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error && errorJson.error.message) {
+              errorMessage += ` - ${errorJson.error.message}`;
+            } else {
+              errorMessage += ` - ${errorText}`;
+            }
+          } catch (e) {
+            errorMessage += ` - ${errorText}`;
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        const generatedText = data.choices[0].message.content.replace(/\*\*/g, '');
+        
+        const reviewTextarea = document.getElementById('review-textarea');
+        if (reviewTextarea) {
+          reviewTextarea.value = generatedText;
+          reviewTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+          reviewTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        navigator.clipboard.writeText(generatedText).catch(e => console.log('Failed to copy to clipboard', e));
+        
+        // Auto-fill if checkbox is checked
+        if (autoFillCheckbox && autoFillCheckbox.checked) {
+          try { await autoFillReviewForm(); } catch (e) { console.error('Auto-fill failed:', e); }
+        }
+        
+        btn.innerHTML = '<span class="btn-icon">⚡</span><span class="btn-text">DeepSeek</span>';
+        btn.disabled = false;
+        
+      } catch (error) {
+        console.error('Error in DeepSeek generation:', error);
+        alert('Error generating review: ' + error.message);
+        
+        const btn = document.getElementById('wordhero-btn');
+        btn.innerHTML = '<span class="btn-icon">⚡</span><span class="btn-text">DeepSeek</span>';
+        btn.disabled = false;
+      }
+    }
+    
     // Handle Gemini generation
     async function handleGeminiGeneration() {
       try {
@@ -2175,6 +2128,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Copy to clipboard for easy pasting via "Fill" button later
         navigator.clipboard.writeText(generatedText).catch(e => console.log('Failed to copy to clipboard', e));
         
+        // Auto-fill if checkbox is checked
+        if (autoFillCheckbox && autoFillCheckbox.checked) {
+          try { await autoFillReviewForm(); } catch (e) { console.error('Auto-fill failed:', e); }
+        }
+        
         // Reset button
         geminiBtn.innerHTML = '<span class="btn-icon">🤖</span><span class="btn-text">Gemini</span>';
         geminiBtn.disabled = false;
@@ -2189,44 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Handle WordHero generation
-    async function handleWordHeroGeneration() {
-      try {
-        // Check if we have product data and keyword
-        const productData = localStorage.getItem('productData');
-        const keyword = localStorage.getItem('selectedKeyword');
-        
-        if (!productData || !keyword) {
-          alert("Please load product information and select a star rating first.");
-          return;
-        }
-        
-        // Show loading message
-        wordheroBtn.textContent = 'Opening WordHero...';
-        wordheroBtn.disabled = true;
-        
-        // Open WordHero and set up automation
-        await wordheroAutomation.openWordHero();
-        
-        // Reset button
-        wordheroBtn.textContent = 'Generate with WordHero.ai';
-        wordheroBtn.disabled = false;
-        
-        // Close popup
-        window.close();
-        
-      } catch (error) {
-        console.error('WordHero automation error:', error);
-        alert('Error opening WordHero: ' + error.message);
-        
-        // Reset button
-        wordheroBtn.textContent = 'Generate with WordHero.ai';
-        wordheroBtn.disabled = false;
-      }
-    }
-
     // Initialize automation instances
-    wordheroAutomation = new WordHeroAutomation();
     geminiAutomation = new GeminiAutomation();
     
     // Initialize the extension
